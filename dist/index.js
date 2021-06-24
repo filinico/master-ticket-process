@@ -10111,15 +10111,15 @@ const semantic_version_1 = __nccwpck_require__(6052);
 const jiraUpdate_1 = __nccwpck_require__(556);
 const jiraApi_1 = __nccwpck_require__(8286);
 const gitRepo_1 = __nccwpck_require__(9750);
-const onReleasePush = (actionContext, jiraContext) => __awaiter(void 0, void 0, void 0, function* () {
+const onReleasePush = (actionContext, jiraContext, tagPrefix) => __awaiter(void 0, void 0, void 0, function* () {
     const { context } = actionContext;
     const { payload: { base: { label } } } = context;
     const releaseVersion = semantic_version_1.getVersionFromBranch(label, 'release');
-    const lastTagName = yield gitHubApi_1.getLastTagName(actionContext, `ctm${releaseVersion}`);
+    const lastTagName = yield gitHubApi_1.getLastTagName(actionContext, `${tagPrefix}${releaseVersion}`);
     let fixVersion = null;
     let prerelease = false;
     if (!lastTagName) {
-        const gitHubMajorVersion = yield gitHubApi_1.getReleaseByTagName(actionContext, `ctm${releaseVersion}.0`);
+        const gitHubMajorVersion = yield gitHubApi_1.getReleaseByTagName(actionContext, `${tagPrefix}${releaseVersion}.0`);
         if (gitHubMajorVersion) {
             fixVersion = gitHubMajorVersion.tagName;
             prerelease = gitHubMajorVersion.isPrerelease;
@@ -10373,6 +10373,7 @@ function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             const githubToken = core.getInput('GITHUB_TOKEN', { required: true });
+            const tagPrefix = core.getInput('TAG_PREFIX', { required: true });
             const octokit = github.getOctokit(githubToken);
             const gitHubContext = {
                 octokit,
@@ -10393,7 +10394,7 @@ function run() {
                 masterIssueType: core.getInput('JIRA_MASTER_ISSUE_TYPE', { required: true })
             };
             if (process.env.GITHUB_EVENT_NAME === 'push') {
-                yield eventHandler_1.onReleasePush(gitHubContext, jiraContext);
+                yield eventHandler_1.onReleasePush(gitHubContext, jiraContext, tagPrefix);
             }
             else if (process.env.GITHUB_EVENT_NAME === 'release' &&
                 github.context.action === 'published') {
