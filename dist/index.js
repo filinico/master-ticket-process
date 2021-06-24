@@ -10234,7 +10234,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.extractJiraIssues = void 0;
 const promisify_child_process_1 = __nccwpck_require__(2809);
 const extractJiraIssues = (releaseVersion) => __awaiter(void 0, void 0, void 0, function* () {
-    const { stdout } = yield promisify_child_process_1.exec(`./../extract-issues -r ${releaseVersion}`);
+    const { stdout } = yield promisify_child_process_1.exec(`${__dirname}/../extract-issues -r ${releaseVersion}`);
     const issueKeysCommaSeparated = stdout;
     let issueKeys = [];
     if (issueKeysCommaSeparated) {
