@@ -30,11 +30,9 @@ export const onReleasePush = async (
 ): Promise<OnReleasePushResults> => {
   const {context} = actionContext
   const {
-    payload: {
-      base: {label}
-    }
+    payload: {ref}
   } = context
-  const releaseVersion = getVersionFromBranch(label, 'release')
+  const releaseVersion = getVersionFromBranch(ref, 'release')
   const lastTagName = await getLastTagName(
     actionContext,
     `${tagPrefix}${releaseVersion}`
