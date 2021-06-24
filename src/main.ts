@@ -1,16 +1,39 @@
 import * as core from '@actions/core'
-import {wait} from './wait'
+import * as github from '@actions/github'
+import {onReleasePublished, onReleasePush} from './eventHandler'
 
 async function run(): Promise<void> {
   try {
-    const ms: string = core.getInput('milliseconds')
-    core.debug(`Waiting ${ms} milliseconds ...`) // debug is only output if you set the secret `ACTIONS_RUNNER_DEBUG` to true
+    const githubToken = core.getInput('GITHUB_TOKEN', {required: true})
 
-    core.debug(new Date().toTimeString())
-    await wait(parseInt(ms, 10))
-    core.debug(new Date().toTimeString())
+    const octokit = github.getOctokit(githubToken)
+    const gitHubContext = {
+      octokit,
+      context: github.context
+    }
+    const jiraContext = {
+      subDomain: core.getInput('JIRA_SUBDOMAIN', {required: true}),
+      email: core.getInput('JIRA_USER', {required: true}),
+      token: core.getInput('JIRA_TOKEN', {required: true}),
+      projectId: core.getInput('JIRA_PROJECT_ID', {required: true}),
+      projectKey: core.getInput('JIRA_PROJECT_KEY', {required: true}),
+      masterProjectId: core.getInput('JIRA_MASTER_PROJECT_ID', {
+        required: true
+      }),
+      masterProjectKey: core.getInput('JIRA_MASTER_PROJECT_KEY', {
+        required: true
+      }),
+      masterIssueType: core.getInput('JIRA_MASTER_ISSUE_TYPE', {required: true})
+    }
 
-    core.setOutput('time', new Date().toTimeString())
+    if (process.env.GITHUB_EVENT_NAME === 'push') {
+      await onReleasePush(gitHubContext, jiraContext)
+    } else if (
+      process.env.GITHUB_EVENT_NAME === 'release' &&
+      github.context.action === 'published'
+    ) {
+      await onReleasePublished(gitHubContext, jiraContext)
+    }
   } catch (error) {
     core.setFailed(error.message)
   }
