@@ -32,6 +32,9 @@ inputs:
   JIRA_MASTER_ISSUE_TYPE:
     description: "master issue type id from jira cloud"
     required: true
+  TAG_PREFIX:
+    description: "prefix for the versioning"
+    required: true
 runs:
   using: 'node12'
   main: 'dist/index.js'

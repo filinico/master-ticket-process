@@ -15,7 +15,8 @@ import {extractJiraIssues} from './gitRepo'
 
 export const onReleasePush = async (
   actionContext: GitHubContext,
-  jiraContext: JiraContext
+  jiraContext: JiraContext,
+  tagPrefix: string
 ): Promise<void> => {
   const {context} = actionContext
   const {
@@ -26,14 +27,14 @@ export const onReleasePush = async (
   const releaseVersion = getVersionFromBranch(label, 'release')
   const lastTagName = await getLastTagName(
     actionContext,
-    `ctm${releaseVersion}`
+    `${tagPrefix}${releaseVersion}`
   )
   let fixVersion: string | null = null
   let prerelease = false
   if (!lastTagName) {
     const gitHubMajorVersion = await getReleaseByTagName(
       actionContext,
-      `ctm${releaseVersion}.0`
+      `${tagPrefix}${releaseVersion}.0`
     )
     if (gitHubMajorVersion) {
       fixVersion = gitHubMajorVersion.tagName

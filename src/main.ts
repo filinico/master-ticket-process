@@ -5,6 +5,7 @@ import {onReleasePublished, onReleasePush} from './eventHandler'
 async function run(): Promise<void> {
   try {
     const githubToken = core.getInput('GITHUB_TOKEN', {required: true})
+    const tagPrefix = core.getInput('TAG_PREFIX', {required: true})
 
     const octokit = github.getOctokit(githubToken)
     const gitHubContext = {
@@ -27,7 +28,7 @@ async function run(): Promise<void> {
     }
 
     if (process.env.GITHUB_EVENT_NAME === 'push') {
-      await onReleasePush(gitHubContext, jiraContext)
+      await onReleasePush(gitHubContext, jiraContext, tagPrefix)
     } else if (
       process.env.GITHUB_EVENT_NAME === 'release' &&
       github.context.action === 'published'
