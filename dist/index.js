@@ -10113,8 +10113,8 @@ const jiraApi_1 = __nccwpck_require__(8286);
 const gitRepo_1 = __nccwpck_require__(9750);
 const onReleasePush = (actionContext, jiraContext, tagPrefix) => __awaiter(void 0, void 0, void 0, function* () {
     const { context } = actionContext;
-    const { payload: { base: { label } } } = context;
-    const releaseVersion = semantic_version_1.getVersionFromBranch(label, 'release');
+    const { payload: { ref } } = context;
+    const releaseVersion = semantic_version_1.getVersionFromBranch(ref, 'release');
     const lastTagName = yield gitHubApi_1.getLastTagName(actionContext, `${tagPrefix}${releaseVersion}`);
     let fixVersion = null;
     let prerelease = false;
@@ -10473,7 +10473,7 @@ const getVersionFromBranch = (branchName, branchType) => {
     if (branchName.includes(branchType)) {
         const sourceBranchSuffixArray = branchName.split('/');
         if (sourceBranchSuffixArray.length > 1)
-            return sourceBranchSuffixArray[1];
+            return sourceBranchSuffixArray[sourceBranchSuffixArray.length - 1];
     }
     return branchName;
 };
