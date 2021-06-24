@@ -84,7 +84,7 @@ const filterIssuesWithoutCurrentFixVersion = async (
   const {projectKey} = context
   const groupedIssues = issueKeys.join(',')
   const searchIssuesWithoutCurrentFixVersion = `project = ${projectKey} AND fixVersion not in (${fixVersion}) AND issuekey in (${groupedIssues})`
-  const {issues} = await searchIssues(
+  const issues = await searchIssues(
     context,
     searchIssuesWithoutCurrentFixVersion,
     ['issuelinks']
@@ -98,7 +98,7 @@ const getMasterTicketKey = async (
 ): Promise<string | null> => {
   const {masterProjectKey} = context
   const masterTicketQuery = `project = ${masterProjectKey} AND fixVersion in (${fixVersion})`
-  const {issues} = await searchIssues(context, masterTicketQuery, ['summary'])
+  const issues = await searchIssues(context, masterTicketQuery, ['summary'])
   let masterTicketIssueKey: string | null = null
   if (issues && issues.length === 1) {
     masterTicketIssueKey = issues[0].key

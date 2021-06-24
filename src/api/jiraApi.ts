@@ -140,7 +140,7 @@ export const searchIssues = async (
   context: JiraContext,
   jQLQuery: string,
   properties: string[]
-): Promise<JiraIssues> => {
+): Promise<SearchedJiraIssue[]> => {
   const {subDomain, email, token} = context
   try {
     const response = await axios.post(
@@ -154,9 +154,13 @@ export const searchIssues = async (
       },
       getAuthHeaders(email, token)
     )
-    return response?.data as JiraIssues
+    let issues: SearchedJiraIssue[] = []
+    if (response?.data?.issues && response?.data?.issues.length > 0){
+      issues = response.data.issues
+    }
+    return issues
   } catch (error: unknown) {
-    return Promise.reject(error)
+    return []
   }
 }
 

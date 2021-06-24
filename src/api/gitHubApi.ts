@@ -45,12 +45,14 @@ export const getLastTagName = async (
   })
   const {
     repository: {
-      refs: {
-        nodes: [{name}]
-      }
+      refs: {nodes}
     }
   } = lastTagResponse as LastTagResponse
-  return name
+  if (nodes.length > 0) {
+    return nodes[0].name
+  } else {
+    return null
+  }
 }
 
 interface GetReleaseResponse {

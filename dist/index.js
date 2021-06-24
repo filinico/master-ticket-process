@@ -9944,8 +9944,13 @@ const getLastTagName = (actionContext, releaseVersion) => __awaiter(void 0, void
         owner: context.repo.owner,
         repo: context.repo.repo
     });
-    const { repository: { refs: { nodes: [{ name }] } } } = lastTagResponse;
-    return name;
+    const { repository: { refs: { nodes } } } = lastTagResponse;
+    if (nodes.length > 0) {
+        return nodes[0].name;
+    }
+    else {
+        return null;
+    }
 });
 exports.getLastTagName = getLastTagName;
 const getReleaseByTagNameQuery = `
@@ -10017,6 +10022,7 @@ const getAuthHeaders = (email, token) => {
     };
 };
 const searchIssues = (context, jQLQuery, properties) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b;
     const { subDomain, email, token } = context;
     try {
         const response = yield axios_1.default.post(`https://${subDomain}.atlassian.net/rest/api/3/search`, {
@@ -10026,10 +10032,14 @@ const searchIssues = (context, jQLQuery, properties) => __awaiter(void 0, void 0
             fields: properties,
             startAt: 0
         }, getAuthHeaders(email, token));
-        return response === null || response === void 0 ? void 0 : response.data;
+        let issues = [];
+        if (((_a = response === null || response === void 0 ? void 0 : response.data) === null || _a === void 0 ? void 0 : _a.issues) && ((_b = response === null || response === void 0 ? void 0 : response.data) === null || _b === void 0 ? void 0 : _b.issues.length) > 0) {
+            issues = response.data.issues;
+        }
+        return issues;
     }
     catch (error) {
-        return Promise.reject(error);
+        return [];
     }
 });
 exports.searchIssues = searchIssues;
@@ -10303,13 +10313,13 @@ const filterIssuesWithoutCurrentFixVersion = (context, issueKeys, fixVersion) =>
     const { projectKey } = context;
     const groupedIssues = issueKeys.join(',');
     const searchIssuesWithoutCurrentFixVersion = `project = ${projectKey} AND fixVersion not in (${fixVersion}) AND issuekey in (${groupedIssues})`;
-    const { issues } = yield jiraApi_1.searchIssues(context, searchIssuesWithoutCurrentFixVersion, ['issuelinks']);
+    const issues = yield jiraApi_1.searchIssues(context, searchIssuesWithoutCurrentFixVersion, ['issuelinks']);
     return issues;
 });
 const getMasterTicketKey = (context, fixVersion) => __awaiter(void 0, void 0, void 0, function* () {
     const { masterProjectKey } = context;
     const masterTicketQuery = `project = ${masterProjectKey} AND fixVersion in (${fixVersion})`;
-    const { issues } = yield jiraApi_1.searchIssues(context, masterTicketQuery, ['summary']);
+    const issues = yield jiraApi_1.searchIssues(context, masterTicketQuery, ['summary']);
     let masterTicketIssueKey = null;
     if (issues && issues.length === 1) {
         masterTicketIssueKey = issues[0].key;
