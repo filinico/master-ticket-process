@@ -35,6 +35,21 @@ inputs:
   TAG_PREFIX:
     description: "prefix for the versioning"
     required: true
+outputs:
+  LAST_TAG_NAME:
+    description: "name of the last tag found"
+  FIX_VERSION:
+    description: "current fix version"
+  PRE_RELEASE:
+    description: "Is the current release a prerelease? If yes, it will not link issues to master ticket"
+  EXTRACTED_ISSUE_KEYS:
+    description: "issue keys from git log"
+  ISSUE_KEYS:
+    description: "issue keys without current fix version"
+  MASTER_TICKET_ISSUE_KEY:
+    description: "master ticket for current fix version"
+  LINKED_ISSUE_KEYS:
+    description: "issues linked to master ticket for current fix version"
 runs:
   using: 'node12'
   main: 'dist/index.js'

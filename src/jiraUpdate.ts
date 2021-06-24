@@ -11,14 +11,24 @@ import {
   updateIssue
 } from './api/jiraApi'
 
+interface UpdateJiraResults {
+  issueKeys: string[] | null
+  masterTicketIssueKey: string | null
+  linkedIssueKeys: string[] | null
+}
+
 export const updateJira = async (
   context: JiraContext,
   issueKeys: string[],
   fixVersion: string,
   prerelease: boolean
-): Promise<void> => {
+): Promise<UpdateJiraResults> => {
   if (!issueKeys || issueKeys.length === 0) {
-    return
+    return {
+      issueKeys,
+      masterTicketIssueKey: null,
+      linkedIssueKeys: null
+    }
   }
   const issues = await filterIssuesWithoutCurrentFixVersion(
     context,
@@ -26,7 +36,11 @@ export const updateJira = async (
     fixVersion
   )
   if (!issues || issues.length === 0) {
-    return
+    return {
+      issueKeys,
+      masterTicketIssueKey: null,
+      linkedIssueKeys: null
+    }
   }
   const masterTicketIssueKey = await getMasterTicketKey(context, fixVersion)
   const linkedIssues = issues.filter(i =>
@@ -53,6 +67,12 @@ export const updateJira = async (
     ) {
       await linkIssueToMasterTicket(context, masterTicketIssueKey, issueKey)
     }
+  }
+
+  return {
+    issueKeys,
+    masterTicketIssueKey,
+    linkedIssueKeys
   }
 }
 

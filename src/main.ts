@@ -28,7 +28,49 @@ async function run(): Promise<void> {
     }
 
     if (process.env.GITHUB_EVENT_NAME === 'push') {
-      await onReleasePush(gitHubContext, jiraContext, tagPrefix)
+      const {
+        lastTagName,
+        fixVersion,
+        prerelease,
+        extractedJiraIssues,
+        issueKeys,
+        masterTicketIssueKey,
+        linkedIssueKeys
+      } = await onReleasePush(gitHubContext, jiraContext, tagPrefix)
+      core.setOutput(
+        'LAST_TAG_NAME',
+        lastTagName ? lastTagName : 'lastTagName not found'
+      )
+      core.setOutput(
+        'FIX_VERSION',
+        fixVersion ? fixVersion : 'fixVersion not found'
+      )
+      core.setOutput(
+        'PRE_RELEASE',
+        prerelease ? 'is prerelease' : 'is not prerelease'
+      )
+      core.setOutput(
+        'EXTRACTED_ISSUE_KEYS',
+        extractedJiraIssues ? extractedJiraIssues : 'no issue keys extracted'
+      )
+      core.setOutput(
+        'ISSUE_KEYS',
+        issueKeys && issueKeys.length > 0
+          ? issueKeys.join(',')
+          : 'no issue keys found'
+      )
+      core.setOutput(
+        'MASTER_TICKET_ISSUE_KEY',
+        masterTicketIssueKey
+          ? masterTicketIssueKey
+          : 'masterTicketIssueKey not found'
+      )
+      core.setOutput(
+        'LINKED_ISSUE_KEYS',
+        linkedIssueKeys && linkedIssueKeys.length > 0
+          ? linkedIssueKeys.join(',')
+          : 'no linkedIssueKeys keys found'
+      )
     } else if (
       process.env.GITHUB_EVENT_NAME === 'release' &&
       github.context.action === 'published'

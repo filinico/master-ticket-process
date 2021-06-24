@@ -10137,10 +10137,19 @@ const onReleasePush = (actionContext, jiraContext, tagPrefix) => __awaiter(void 
             prerelease = gitHubRelease.isPrerelease;
         }
     }
+    let onReleasePushResults = {
+        lastTagName,
+        fixVersion,
+        prerelease
+    };
     if (fixVersion) {
-        const issueKeys = yield gitRepo_1.extractJiraIssues(releaseVersion);
-        yield jiraUpdate_1.updateJira(jiraContext, issueKeys, fixVersion, prerelease);
+        const extractedJiraIssues = yield gitRepo_1.extractJiraIssues(releaseVersion);
+        const { issueKeys, masterTicketIssueKey, linkedIssueKeys } = yield jiraUpdate_1.updateJira(jiraContext, extractedJiraIssues, fixVersion, prerelease);
+        onReleasePushResults = Object.assign(Object.assign({}, onReleasePushResults), { issueKeys,
+            masterTicketIssueKey,
+            linkedIssueKeys });
     }
+    return onReleasePushResults;
 });
 exports.onReleasePush = onReleasePush;
 const onReleasePublished = (actionContext, jiraContext) => __awaiter(void 0, void 0, void 0, function* () {
@@ -10247,11 +10256,19 @@ exports.updateJira = void 0;
 const jiraApi_1 = __nccwpck_require__(8286);
 const updateJira = (context, issueKeys, fixVersion, prerelease) => __awaiter(void 0, void 0, void 0, function* () {
     if (!issueKeys || issueKeys.length === 0) {
-        return;
+        return {
+            issueKeys,
+            masterTicketIssueKey: null,
+            linkedIssueKeys: null
+        };
     }
     const issues = yield filterIssuesWithoutCurrentFixVersion(context, issueKeys, fixVersion);
     if (!issues || issues.length === 0) {
-        return;
+        return {
+            issueKeys,
+            masterTicketIssueKey: null,
+            linkedIssueKeys: null
+        };
     }
     const masterTicketIssueKey = yield getMasterTicketKey(context, fixVersion);
     const linkedIssues = issues.filter(i => { var _a, _b; return (_b = (_a = i.fields) === null || _a === void 0 ? void 0 : _a.issuelinks) === null || _b === void 0 ? void 0 : _b.find(j => j.inwardIssue.key === masterTicketIssueKey); });
@@ -10275,6 +10292,11 @@ const updateJira = (context, issueKeys, fixVersion, prerelease) => __awaiter(voi
             yield linkIssueToMasterTicket(context, masterTicketIssueKey, issueKey);
         }
     }
+    return {
+        issueKeys,
+        masterTicketIssueKey,
+        linkedIssueKeys
+    };
 });
 exports.updateJira = updateJira;
 const filterIssuesWithoutCurrentFixVersion = (context, issueKeys, fixVersion) => __awaiter(void 0, void 0, void 0, function* () {
@@ -10394,7 +10416,20 @@ function run() {
                 masterIssueType: core.getInput('JIRA_MASTER_ISSUE_TYPE', { required: true })
             };
             if (process.env.GITHUB_EVENT_NAME === 'push') {
-                yield eventHandler_1.onReleasePush(gitHubContext, jiraContext, tagPrefix);
+                const { lastTagName, fixVersion, prerelease, extractedJiraIssues, issueKeys, masterTicketIssueKey, linkedIssueKeys } = yield eventHandler_1.onReleasePush(gitHubContext, jiraContext, tagPrefix);
+                core.setOutput('LAST_TAG_NAME', lastTagName ? lastTagName : 'lastTagName not found');
+                core.setOutput('FIX_VERSION', fixVersion ? fixVersion : 'fixVersion not found');
+                core.setOutput('PRE_RELEASE', prerelease ? 'is prerelease' : 'is not prerelease');
+                core.setOutput('EXTRACTED_ISSUE_KEYS', extractedJiraIssues ? extractedJiraIssues : 'no issue keys extracted');
+                core.setOutput('ISSUE_KEYS', issueKeys && issueKeys.length > 0
+                    ? issueKeys.join(',')
+                    : 'no issue keys found');
+                core.setOutput('MASTER_TICKET_ISSUE_KEY', masterTicketIssueKey
+                    ? masterTicketIssueKey
+                    : 'masterTicketIssueKey not found');
+                core.setOutput('LINKED_ISSUE_KEYS', linkedIssueKeys && linkedIssueKeys.length > 0
+                    ? linkedIssueKeys.join(',')
+                    : 'no linkedIssueKeys keys found');
             }
             else if (process.env.GITHUB_EVENT_NAME === 'release' &&
                 github.context.action === 'published') {
