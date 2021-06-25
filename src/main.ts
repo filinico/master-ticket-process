@@ -7,10 +7,18 @@ async function run(): Promise<void> {
     const githubToken = core.getInput('GITHUB_TOKEN', {required: true})
     const tagPrefix = core.getInput('TAG_PREFIX', {required: true})
 
+    if (!process.env.GITHUB_WORKSPACE) {
+      core.setFailed(
+        'Please use the "actions/checkout" action to checkout your repository.'
+      )
+      return
+    }
+
     const octokit = github.getOctokit(githubToken)
     const gitHubContext = {
       octokit,
-      context: github.context
+      context: github.context,
+      workspace: process.env.GITHUB_WORKSPACE
     }
     const jiraContext = {
       subDomain: core.getInput('JIRA_SUBDOMAIN', {required: true}),

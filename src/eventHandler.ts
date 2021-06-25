@@ -28,7 +28,7 @@ export const onReleasePush = async (
   jiraContext: JiraContext,
   tagPrefix: string
 ): Promise<OnReleasePushResults> => {
-  const {context} = actionContext
+  const {context, workspace} = actionContext
   const {
     payload: {ref}
   } = context
@@ -69,7 +69,10 @@ export const onReleasePush = async (
     prerelease
   }
   if (fixVersion) {
-    const extractedJiraIssues = await extractJiraIssues(releaseVersion)
+    const extractedJiraIssues = await extractJiraIssues(
+      releaseVersion,
+      workspace
+    )
     const {issueKeys, masterTicketIssueKey, linkedIssueKeys} = await updateJira(
       jiraContext,
       extractedJiraIssues,
@@ -90,14 +93,14 @@ export const onReleasePublished = async (
   actionContext: GitHubContext,
   jiraContext: JiraContext
 ): Promise<void> => {
-  const {context} = actionContext
+  const {context, workspace} = actionContext
   const {
     payload: {
       release: {tag_name, target_commitish, prerelease}
     }
   } = context
   const releaseVersion = getVersionFromBranch(target_commitish, 'release')
-  const issueKeys = await extractJiraIssues(releaseVersion)
+  const issueKeys = await extractJiraIssues(releaseVersion, workspace)
   await updateJira(jiraContext, issueKeys, tag_name, prerelease)
   const nextPatchVersion = generateNextPatchVersion(tag_name)
   await createRelease(actionContext, nextPatchVersion, target_commitish)

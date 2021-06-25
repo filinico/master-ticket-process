@@ -10122,7 +10122,7 @@ const jiraUpdate_1 = __nccwpck_require__(556);
 const jiraApi_1 = __nccwpck_require__(8286);
 const gitRepo_1 = __nccwpck_require__(9750);
 const onReleasePush = (actionContext, jiraContext, tagPrefix) => __awaiter(void 0, void 0, void 0, function* () {
-    const { context } = actionContext;
+    const { context, workspace } = actionContext;
     const { payload: { ref } } = context;
     const releaseVersion = semantic_version_1.getVersionFromBranch(ref, 'release');
     const lastTagName = yield gitHubApi_1.getLastTagName(actionContext, `${tagPrefix}${releaseVersion}`);
@@ -10153,7 +10153,7 @@ const onReleasePush = (actionContext, jiraContext, tagPrefix) => __awaiter(void 
         prerelease
     };
     if (fixVersion) {
-        const extractedJiraIssues = yield gitRepo_1.extractJiraIssues(releaseVersion);
+        const extractedJiraIssues = yield gitRepo_1.extractJiraIssues(releaseVersion, workspace);
         const { issueKeys, masterTicketIssueKey, linkedIssueKeys } = yield jiraUpdate_1.updateJira(jiraContext, extractedJiraIssues, fixVersion, prerelease);
         onReleasePushResults = Object.assign(Object.assign({}, onReleasePushResults), { issueKeys,
             masterTicketIssueKey,
@@ -10163,10 +10163,10 @@ const onReleasePush = (actionContext, jiraContext, tagPrefix) => __awaiter(void 
 });
 exports.onReleasePush = onReleasePush;
 const onReleasePublished = (actionContext, jiraContext) => __awaiter(void 0, void 0, void 0, function* () {
-    const { context } = actionContext;
+    const { context, workspace } = actionContext;
     const { payload: { release: { tag_name, target_commitish, prerelease } } } = context;
     const releaseVersion = semantic_version_1.getVersionFromBranch(target_commitish, 'release');
-    const issueKeys = yield gitRepo_1.extractJiraIssues(releaseVersion);
+    const issueKeys = yield gitRepo_1.extractJiraIssues(releaseVersion, workspace);
     yield jiraUpdate_1.updateJira(jiraContext, issueKeys, tag_name, prerelease);
     const nextPatchVersion = semantic_version_1.generateNextPatchVersion(tag_name);
     yield gitHubApi_1.createRelease(actionContext, nextPatchVersion, target_commitish);
@@ -10233,12 +10233,15 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.extractJiraIssues = void 0;
 const promisify_child_process_1 = __nccwpck_require__(2809);
-const extractJiraIssues = (releaseVersion) => __awaiter(void 0, void 0, void 0, function* () {
+const extractJiraIssues = (releaseVersion, githubWorkspace) => __awaiter(void 0, void 0, void 0, function* () {
     yield promisify_child_process_1.exec(`chmod +x ${__dirname}/../extract-issues`);
+    yield promisify_child_process_1.exec(`cd ${githubWorkspace}`);
     const { stdout } = yield promisify_child_process_1.exec(`${__dirname}/../extract-issues -r ${releaseVersion}`);
     const issueKeysCommaSeparated = stdout;
     let issueKeys = [];
-    if (issueKeysCommaSeparated) {
+    if (issueKeysCommaSeparated &&
+        issueKeysCommaSeparated !== '' &&
+        issueKeysCommaSeparated !== ' ') {
         issueKeys = issueKeysCommaSeparated.split(',');
     }
     return issueKeys;
@@ -10407,10 +10410,15 @@ function run() {
         try {
             const githubToken = core.getInput('GITHUB_TOKEN', { required: true });
             const tagPrefix = core.getInput('TAG_PREFIX', { required: true });
+            if (!process.env.GITHUB_WORKSPACE) {
+                core.setFailed('Please use the "actions/checkout" action to checkout your repository.');
+                return;
+            }
             const octokit = github.getOctokit(githubToken);
             const gitHubContext = {
                 octokit,
-                context: github.context
+                context: github.context,
+                workspace: process.env.GITHUB_WORKSPACE
             };
             const jiraContext = {
                 subDomain: core.getInput('JIRA_SUBDOMAIN', { required: true }),

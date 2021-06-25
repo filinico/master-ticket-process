@@ -5,6 +5,7 @@ type GitHub = ReturnType<typeof github.getOctokit>
 export interface GitHubContext {
   octokit: GitHub
   context: Context
+  workspace: string
 }
 
 interface LastTagResponse {
