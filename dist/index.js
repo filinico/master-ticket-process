@@ -10256,11 +10256,24 @@ const core = __importStar(__nccwpck_require__(2186));
 const extractJiraIssues = (releaseVersion, githubWorkspace) => __awaiter(void 0, void 0, void 0, function* () {
     yield promisify_child_process_1.exec(`chmod +x ${__dirname}/../extract-issues`);
     yield promisify_child_process_1.exec(`cd ${githubWorkspace}`);
-    const listRepo = yield promisify_child_process_1.exec(`ls -l`);
-    core.info(`listRepo:--${listRepo.stdout}--`);
+    const currentPath = yield promisify_child_process_1.exec(`pwd`);
+    core.info(`listRepo:--${currentPath.stdout}--`);
+    if (currentPath.stderr) {
+        core.error(currentPath.stderr.toString());
+    }
+    const fetchTags = yield promisify_child_process_1.exec(`git fetch --prune --unshallow --tags"`);
+    if (fetchTags.stderr) {
+        core.error(fetchTags.stderr.toString());
+    }
     const tags = yield promisify_child_process_1.exec(`git tag --list --sort=-version:refname "5.*"`);
     core.info(`tags:--${tags.stdout}--`);
-    const { stdout } = yield promisify_child_process_1.exec(`${__dirname}/../extract-issues -r ${releaseVersion}`);
+    if (tags.stderr) {
+        core.error(tags.stderr.toString());
+    }
+    const { stdout, stderr } = yield promisify_child_process_1.exec(`${__dirname}/../extract-issues -r ${releaseVersion}`);
+    if (stderr) {
+        core.error(stderr.toString());
+    }
     const issueKeysCommaSeparated = stdout;
     let issueKeys = [];
     if (issueKeysCommaSeparated &&
