@@ -10414,6 +10414,8 @@ function run() {
                 core.setFailed('Please use the "actions/checkout" action to checkout your repository.');
                 return;
             }
+            core.info(`GITHUB_WORKSPACE=${process.env.GITHUB_WORKSPACE}`);
+            core.info(`Current dir=${__dirname}`);
             const octokit = github.getOctokit(githubToken);
             const gitHubContext = {
                 octokit,

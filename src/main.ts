@@ -14,6 +14,9 @@ async function run(): Promise<void> {
       return
     }
 
+    core.info(`GITHUB_WORKSPACE=${process.env.GITHUB_WORKSPACE}`)
+    core.info(`Current dir=${__dirname}`)
+
     const octokit = github.getOctokit(githubToken)
     const gitHubContext = {
       octokit,
