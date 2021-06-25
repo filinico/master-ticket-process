@@ -10271,6 +10271,7 @@ const extractJiraIssues = (releaseVersion, githubWorkspace) => __awaiter(void 0,
         core.error(tags.stderr.toString());
     }
     const { stdout, stderr } = yield promisify_child_process_1.exec(`${__dirname}/../extract-issues -r ${releaseVersion}`);
+    core.info(`issueKeysCommaSeparated:--${stdout}--`);
     if (stderr) {
         core.error(stderr.toString());
     }

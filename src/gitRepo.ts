@@ -24,6 +24,7 @@ export const extractJiraIssues = async (
   const {stdout, stderr} = await exec(
     `${__dirname}/../extract-issues -r ${releaseVersion}`
   )
+  core.info(`issueKeysCommaSeparated:--${stdout}--`)
   if (stderr) {
     core.error(stderr.toString())
   }
