@@ -1,4 +1,5 @@
-import axios from 'axios'
+import axios, {AxiosError} from 'axios'
+import * as core from '@actions/core'
 
 export interface JiraContext {
   subDomain: string
@@ -143,6 +144,7 @@ export const searchIssues = async (
 ): Promise<SearchedJiraIssue[]> => {
   const {subDomain, email, token} = context
   try {
+    core.info('request searchIssues')
     const response = await axios.post(
       `https://${subDomain}.atlassian.net/rest/api/3/search`,
       {
@@ -154,13 +156,18 @@ export const searchIssues = async (
       },
       getAuthHeaders(email, token)
     )
+    core.info(`searchIssues successful`)
     let issues: SearchedJiraIssue[] = []
-    if (response?.data?.issues && response?.data?.issues.length > 0){
+    if (response?.data?.issues && response?.data?.issues.length > 0) {
       issues = response.data.issues
     }
     return issues
-  } catch (error: unknown) {
-    return []
+  } catch (error: unknown | AxiosError) {
+    core.error('error during searchIssues request')
+    if (axios.isAxiosError(error)) {
+      core.error(error.message)
+    }
+    return Promise.reject(error)
   }
 }
 
@@ -170,13 +177,19 @@ export const createVersion = async (
 ): Promise<JiraVersion> => {
   const {subDomain, email, token} = context
   try {
+    core.info('request createVersion')
     const response = await axios.post(
       `https://${subDomain}.atlassian.net/rest/api/3/version`,
       version,
       getAuthHeaders(email, token)
     )
+    core.info(`createVersion successful`)
     return response?.data
-  } catch (error: unknown) {
+  } catch (error: unknown | AxiosError) {
+    core.error('error during createVersion request')
+    if (axios.isAxiosError(error)) {
+      core.error(error.message)
+    }
     return Promise.reject(error)
   }
 }
@@ -186,12 +199,18 @@ export const listProjectVersions = async (
 ): Promise<JiraVersion[]> => {
   const {subDomain, email, token, projectKey} = context
   try {
+    core.info(`request listProjectVersions ${projectKey}`)
     const response = await axios.get(
       `https://${subDomain}.atlassian.net/rest/api/3/project/${projectKey}/versions`,
       getAuthHeaders(email, token)
     )
+    core.info(`listProjectVersions successful`)
     return response?.data
-  } catch (error: unknown) {
+  } catch (error: unknown | AxiosError) {
+    core.error('error during listProjectVersions request')
+    if (axios.isAxiosError(error)) {
+      core.error(error.message)
+    }
     return Promise.reject(error)
   }
 }
@@ -203,12 +222,18 @@ export const updateIssue = async (
 ): Promise<void> => {
   const {subDomain, email, token} = context
   try {
+    core.info(`request updateIssue ${issueKey}`)
     await axios.put(
       `https://${subDomain}.atlassian.net/rest/api/3/issue/${issueKey}`,
       data,
       getAuthHeaders(email, token)
     )
-  } catch (error: unknown) {
+    core.info(`updateIssue ${issueKey} successful`)
+  } catch (error: unknown | AxiosError) {
+    core.error('error during updateIssue request')
+    if (axios.isAxiosError(error)) {
+      core.error(error.message)
+    }
     return Promise.reject(error)
   }
 }
@@ -219,13 +244,19 @@ export const createIssue = async (
 ): Promise<CreatedIssue> => {
   const {subDomain, email, token} = context
   try {
+    core.info('request createIssue')
     const response = await axios.post(
       `https://${subDomain}.atlassian.net/rest/api/3/issue`,
       data,
       getAuthHeaders(email, token)
     )
+    core.info(`createIssue successful`)
     return response?.data
-  } catch (error: unknown) {
+  } catch (error: unknown | AxiosError) {
+    core.error('error during createIssue request')
+    if (axios.isAxiosError(error)) {
+      core.error(error.message)
+    }
     return Promise.reject(error)
   }
 }
@@ -236,12 +267,18 @@ export const createIssueLink = async (
 ): Promise<void> => {
   const {subDomain, email, token} = context
   try {
+    core.info(`request createIssueLink`)
     await axios.post(
       `https://${subDomain}.atlassian.net/rest/api/3/issueLink`,
       data,
       getAuthHeaders(email, token)
     )
-  } catch (error: unknown) {
+    core.info(`createIssueLink successful`)
+  } catch (error: unknown | AxiosError) {
+    core.error('error during createIssueLink request')
+    if (axios.isAxiosError(error)) {
+      core.error(error.message)
+    }
     return Promise.reject(error)
   }
 }

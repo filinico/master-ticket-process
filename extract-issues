@@ -9,6 +9,7 @@ while getopts ":r:" arg; do
   esac
 done
 
+git fetch --tags
 tagVersion=$(echo -e "$releaseVersion" | sed 's/\.//g')
 previousTag=$(git tag --list --sort=-version:refname "5.$tagVersion*" | head -n 1)
 revision=$(git log -g "origin/release/$releaseVersion" -1 --format=%H)

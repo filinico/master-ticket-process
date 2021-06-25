@@ -12,31 +12,24 @@ import {
 import {updateJira} from './jiraUpdate'
 import {createIssue, createVersion, JiraContext} from './api/jiraApi'
 import {extractJiraIssues} from './gitRepo'
-
-interface OnReleasePushResults {
-  lastTagName: string | null
-  fixVersion: string | null
-  extractedJiraIssues?: string | null
-  issueKeys?: string[] | null
-  prerelease: boolean
-  masterTicketIssueKey?: string | null
-  linkedIssueKeys?: string[] | null
-}
+import * as core from '@actions/core'
 
 export const onReleasePush = async (
   actionContext: GitHubContext,
   jiraContext: JiraContext,
   tagPrefix: string
-): Promise<OnReleasePushResults> => {
+): Promise<void> => {
   const {context, workspace} = actionContext
   const {
     payload: {ref}
   } = context
   const releaseVersion = getVersionFromBranch(ref, 'release')
+  core.info(`Release version:${releaseVersion}`)
   const lastTagName = await getLastTagName(
     actionContext,
     `${tagPrefix}${releaseVersion}`
   )
+  core.info(`lastTagName:${lastTagName}`)
   let fixVersion: string | null = null
   let prerelease = false
   if (!lastTagName) {
@@ -63,30 +56,14 @@ export const onReleasePush = async (
       prerelease = gitHubRelease.isPrerelease
     }
   }
-  let onReleasePushResults: OnReleasePushResults = {
-    lastTagName,
-    fixVersion,
-    prerelease
-  }
+  core.info(`fixVersion:${fixVersion}`)
   if (fixVersion) {
     const extractedJiraIssues = await extractJiraIssues(
       releaseVersion,
       workspace
     )
-    const {issueKeys, masterTicketIssueKey, linkedIssueKeys} = await updateJira(
-      jiraContext,
-      extractedJiraIssues,
-      fixVersion,
-      prerelease
-    )
-    onReleasePushResults = {
-      ...onReleasePushResults,
-      issueKeys,
-      masterTicketIssueKey,
-      linkedIssueKeys
-    }
+    await updateJira(jiraContext, extractedJiraIssues, fixVersion, prerelease)
   }
-  return onReleasePushResults
 }
 
 export const onReleasePublished = async (

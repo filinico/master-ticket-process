@@ -10,44 +10,34 @@ import {
   UpdateFixVersion,
   updateIssue
 } from './api/jiraApi'
-
-interface UpdateJiraResults {
-  issueKeys: string[] | null
-  masterTicketIssueKey: string | null
-  linkedIssueKeys: string[] | null
-}
+import * as core from '@actions/core'
 
 export const updateJira = async (
   context: JiraContext,
   issueKeys: string[],
   fixVersion: string,
   prerelease: boolean
-): Promise<UpdateJiraResults> => {
+): Promise<void> => {
   if (!issueKeys || issueKeys.length === 0) {
-    return {
-      issueKeys,
-      masterTicketIssueKey: null,
-      linkedIssueKeys: null
-    }
+    return
   }
+  core.info(`fixVersion:[${fixVersion}]`)
   const issues = await filterIssuesWithoutCurrentFixVersion(
     context,
     issueKeys,
     fixVersion
   )
   if (!issues || issues.length === 0) {
-    return {
-      issueKeys,
-      masterTicketIssueKey: null,
-      linkedIssueKeys: null
-    }
+    return
   }
   const masterTicketIssueKey = await getMasterTicketKey(context, fixVersion)
   const linkedIssues = issues.filter(i =>
     i.fields?.issuelinks?.find(j => j.inwardIssue.key === masterTicketIssueKey)
   )
   const linkedIssueKeys = linkedIssues.map(issue => issue.key)
+  core.info(`linkedIssueKeys:[${linkedIssueKeys.join(',')}]`)
   const currentIssueKeys = issues.map(issue => issue.key)
+  core.info(`currentIssueKeys:[${currentIssueKeys.join(',')}]`)
   const version = await getJiraVersion(context, fixVersion)
   const fixVersionUpdate: UpdateFixVersion = {
     update: {
@@ -59,20 +49,18 @@ export const updateJira = async (
     }
   }
   for (const issueKey of currentIssueKeys) {
+    core.info(`start updateIssue:[${issueKey}]`)
     await updateIssue(context, issueKey, fixVersionUpdate)
     if (
       !prerelease &&
       masterTicketIssueKey &&
       !linkedIssueKeys.find(i => i === issueKey)
     ) {
+      core.info(
+        `start linkIssueToMasterTicket:[issue:${issueKey},masterTicketIssueKey:${masterTicketIssueKey}]`
+      )
       await linkIssueToMasterTicket(context, masterTicketIssueKey, issueKey)
     }
-  }
-
-  return {
-    issueKeys,
-    masterTicketIssueKey,
-    linkedIssueKeys
   }
 }
 
@@ -84,6 +72,7 @@ const filterIssuesWithoutCurrentFixVersion = async (
   const {projectKey} = context
   const groupedIssues = issueKeys.join(',')
   const searchIssuesWithoutCurrentFixVersion = `project = ${projectKey} AND fixVersion not in (${fixVersion}) AND issuekey in (${groupedIssues})`
+  core.info(`searchIssuesQuery:[${searchIssuesWithoutCurrentFixVersion}]`)
   const issues = await searchIssues(
     context,
     searchIssuesWithoutCurrentFixVersion,
@@ -98,11 +87,13 @@ const getMasterTicketKey = async (
 ): Promise<string | null> => {
   const {masterProjectKey} = context
   const masterTicketQuery = `project = ${masterProjectKey} AND fixVersion in (${fixVersion})`
+  core.info(`masterTicketQuery:[${masterTicketQuery}]`)
   const issues = await searchIssues(context, masterTicketQuery, ['summary'])
   let masterTicketIssueKey: string | null = null
   if (issues && issues.length === 1) {
     masterTicketIssueKey = issues[0].key
   }
+  core.info(`masterTicketIssueKey:${masterTicketIssueKey}`)
   return masterTicketIssueKey
 }
 
@@ -141,9 +132,12 @@ const getJiraVersion = async (
       released: false,
       projectId: parseInt(projectId)
     }
+    core.info(`version not found. start create version:[${requestedVersion}]`)
     version = await createVersion(context, requestedVersion)
+    core.info(`version created:[${version.id}]`)
   } else {
     version = result[0]
+    core.info(`version found:[${version.id}]`)
   }
   return version
 }

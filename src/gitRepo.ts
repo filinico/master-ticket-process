@@ -7,20 +7,6 @@ export const extractJiraIssues = async (
 ): Promise<string[]> => {
   await exec(`chmod +x ${__dirname}/../extract-issues`)
   await exec(`cd ${githubWorkspace}`)
-  const currentPath = await exec(`pwd`)
-  core.info(`currentPath:--${currentPath.stdout}--`)
-  if (currentPath.stderr) {
-    core.error(currentPath.stderr.toString())
-  }
-  const fetchTags = await exec(`git fetch --prune --unshallow --tags`)
-  if (fetchTags.stderr) {
-    core.error(fetchTags.stderr.toString())
-  }
-  const tags = await exec(`git tag --list --sort=-version:refname "5.*"`)
-  core.info(`tags:--${tags.stdout}--`)
-  if (tags.stderr) {
-    core.error(tags.stderr.toString())
-  }
   const {stdout, stderr} = await exec(
     `${__dirname}/../extract-issues -r ${releaseVersion}`
   )

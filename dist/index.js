@@ -9998,6 +9998,25 @@ exports.createRelease = createRelease;
 
 "use strict";
 
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -10013,6 +10032,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.createIssueLink = exports.createIssue = exports.updateIssue = exports.listProjectVersions = exports.createVersion = exports.searchIssues = void 0;
 const axios_1 = __importDefault(__nccwpck_require__(6545));
+const core = __importStar(__nccwpck_require__(2186));
 const getAuthHeaders = (email, token) => {
     return {
         headers: {
@@ -10025,6 +10045,7 @@ const searchIssues = (context, jQLQuery, properties) => __awaiter(void 0, void 0
     var _a, _b;
     const { subDomain, email, token } = context;
     try {
+        core.info('request searchIssues');
         const response = yield axios_1.default.post(`https://${subDomain}.atlassian.net/rest/api/3/search`, {
             jql: jQLQuery,
             maxResults: 15,
@@ -10032,6 +10053,7 @@ const searchIssues = (context, jQLQuery, properties) => __awaiter(void 0, void 0
             fields: properties,
             startAt: 0
         }, getAuthHeaders(email, token));
+        core.info(`searchIssues successful`);
         let issues = [];
         if (((_a = response === null || response === void 0 ? void 0 : response.data) === null || _a === void 0 ? void 0 : _a.issues) && ((_b = response === null || response === void 0 ? void 0 : response.data) === null || _b === void 0 ? void 0 : _b.issues.length) > 0) {
             issues = response.data.issues;
@@ -10039,17 +10061,27 @@ const searchIssues = (context, jQLQuery, properties) => __awaiter(void 0, void 0
         return issues;
     }
     catch (error) {
-        return [];
+        core.error('error during searchIssues request');
+        if (axios_1.default.isAxiosError(error)) {
+            core.error(error.message);
+        }
+        return Promise.reject(error);
     }
 });
 exports.searchIssues = searchIssues;
 const createVersion = (context, version) => __awaiter(void 0, void 0, void 0, function* () {
     const { subDomain, email, token } = context;
     try {
+        core.info('request createVersion');
         const response = yield axios_1.default.post(`https://${subDomain}.atlassian.net/rest/api/3/version`, version, getAuthHeaders(email, token));
+        core.info(`createVersion successful`);
         return response === null || response === void 0 ? void 0 : response.data;
     }
     catch (error) {
+        core.error('error during createVersion request');
+        if (axios_1.default.isAxiosError(error)) {
+            core.error(error.message);
+        }
         return Promise.reject(error);
     }
 });
@@ -10057,10 +10089,16 @@ exports.createVersion = createVersion;
 const listProjectVersions = (context) => __awaiter(void 0, void 0, void 0, function* () {
     const { subDomain, email, token, projectKey } = context;
     try {
+        core.info(`request listProjectVersions ${projectKey}`);
         const response = yield axios_1.default.get(`https://${subDomain}.atlassian.net/rest/api/3/project/${projectKey}/versions`, getAuthHeaders(email, token));
+        core.info(`listProjectVersions successful`);
         return response === null || response === void 0 ? void 0 : response.data;
     }
     catch (error) {
+        core.error('error during listProjectVersions request');
+        if (axios_1.default.isAxiosError(error)) {
+            core.error(error.message);
+        }
         return Promise.reject(error);
     }
 });
@@ -10068,9 +10106,15 @@ exports.listProjectVersions = listProjectVersions;
 const updateIssue = (context, issueKey, data) => __awaiter(void 0, void 0, void 0, function* () {
     const { subDomain, email, token } = context;
     try {
+        core.info(`request updateIssue ${issueKey}`);
         yield axios_1.default.put(`https://${subDomain}.atlassian.net/rest/api/3/issue/${issueKey}`, data, getAuthHeaders(email, token));
+        core.info(`updateIssue ${issueKey} successful`);
     }
     catch (error) {
+        core.error('error during updateIssue request');
+        if (axios_1.default.isAxiosError(error)) {
+            core.error(error.message);
+        }
         return Promise.reject(error);
     }
 });
@@ -10078,10 +10122,16 @@ exports.updateIssue = updateIssue;
 const createIssue = (context, data) => __awaiter(void 0, void 0, void 0, function* () {
     const { subDomain, email, token } = context;
     try {
+        core.info('request createIssue');
         const response = yield axios_1.default.post(`https://${subDomain}.atlassian.net/rest/api/3/issue`, data, getAuthHeaders(email, token));
+        core.info(`createIssue successful`);
         return response === null || response === void 0 ? void 0 : response.data;
     }
     catch (error) {
+        core.error('error during createIssue request');
+        if (axios_1.default.isAxiosError(error)) {
+            core.error(error.message);
+        }
         return Promise.reject(error);
     }
 });
@@ -10089,9 +10139,15 @@ exports.createIssue = createIssue;
 const createIssueLink = (context, data) => __awaiter(void 0, void 0, void 0, function* () {
     const { subDomain, email, token } = context;
     try {
+        core.info(`request createIssueLink`);
         yield axios_1.default.post(`https://${subDomain}.atlassian.net/rest/api/3/issueLink`, data, getAuthHeaders(email, token));
+        core.info(`createIssueLink successful`);
     }
     catch (error) {
+        core.error('error during createIssueLink request');
+        if (axios_1.default.isAxiosError(error)) {
+            core.error(error.message);
+        }
         return Promise.reject(error);
     }
 });
@@ -10105,6 +10161,25 @@ exports.createIssueLink = createIssueLink;
 
 "use strict";
 
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -10121,11 +10196,14 @@ const semantic_version_1 = __nccwpck_require__(6052);
 const jiraUpdate_1 = __nccwpck_require__(556);
 const jiraApi_1 = __nccwpck_require__(8286);
 const gitRepo_1 = __nccwpck_require__(9750);
+const core = __importStar(__nccwpck_require__(2186));
 const onReleasePush = (actionContext, jiraContext, tagPrefix) => __awaiter(void 0, void 0, void 0, function* () {
     const { context, workspace } = actionContext;
     const { payload: { ref } } = context;
     const releaseVersion = semantic_version_1.getVersionFromBranch(ref, 'release');
+    core.info(`Release version:${releaseVersion}`);
     const lastTagName = yield gitHubApi_1.getLastTagName(actionContext, `${tagPrefix}${releaseVersion}`);
+    core.info(`lastTagName:${lastTagName}`);
     let fixVersion = null;
     let prerelease = false;
     if (!lastTagName) {
@@ -10147,19 +10225,11 @@ const onReleasePush = (actionContext, jiraContext, tagPrefix) => __awaiter(void 
             prerelease = gitHubRelease.isPrerelease;
         }
     }
-    let onReleasePushResults = {
-        lastTagName,
-        fixVersion,
-        prerelease
-    };
+    core.info(`fixVersion:${fixVersion}`);
     if (fixVersion) {
         const extractedJiraIssues = yield gitRepo_1.extractJiraIssues(releaseVersion, workspace);
-        const { issueKeys, masterTicketIssueKey, linkedIssueKeys } = yield jiraUpdate_1.updateJira(jiraContext, extractedJiraIssues, fixVersion, prerelease);
-        onReleasePushResults = Object.assign(Object.assign({}, onReleasePushResults), { issueKeys,
-            masterTicketIssueKey,
-            linkedIssueKeys });
+        yield jiraUpdate_1.updateJira(jiraContext, extractedJiraIssues, fixVersion, prerelease);
     }
-    return onReleasePushResults;
 });
 exports.onReleasePush = onReleasePush;
 const onReleasePublished = (actionContext, jiraContext) => __awaiter(void 0, void 0, void 0, function* () {
@@ -10256,20 +10326,6 @@ const core = __importStar(__nccwpck_require__(2186));
 const extractJiraIssues = (releaseVersion, githubWorkspace) => __awaiter(void 0, void 0, void 0, function* () {
     yield promisify_child_process_1.exec(`chmod +x ${__dirname}/../extract-issues`);
     yield promisify_child_process_1.exec(`cd ${githubWorkspace}`);
-    const currentPath = yield promisify_child_process_1.exec(`pwd`);
-    core.info(`currentPath:--${currentPath.stdout}--`);
-    if (currentPath.stderr) {
-        core.error(currentPath.stderr.toString());
-    }
-    const fetchTags = yield promisify_child_process_1.exec(`git fetch --prune --unshallow --tags`);
-    if (fetchTags.stderr) {
-        core.error(fetchTags.stderr.toString());
-    }
-    const tags = yield promisify_child_process_1.exec(`git tag --list --sort=-version:refname "5.*"`);
-    core.info(`tags:--${tags.stdout}--`);
-    if (tags.stderr) {
-        core.error(tags.stderr.toString());
-    }
     const { stdout, stderr } = yield promisify_child_process_1.exec(`${__dirname}/../extract-issues -r ${releaseVersion}`);
     core.info(`issueKeysCommaSeparated:--${stdout}--`);
     if (stderr) {
@@ -10294,6 +10350,25 @@ exports.extractJiraIssues = extractJiraIssues;
 
 "use strict";
 
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -10306,26 +10381,22 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.updateJira = void 0;
 const jiraApi_1 = __nccwpck_require__(8286);
+const core = __importStar(__nccwpck_require__(2186));
 const updateJira = (context, issueKeys, fixVersion, prerelease) => __awaiter(void 0, void 0, void 0, function* () {
     if (!issueKeys || issueKeys.length === 0) {
-        return {
-            issueKeys,
-            masterTicketIssueKey: null,
-            linkedIssueKeys: null
-        };
+        return;
     }
+    core.info(`fixVersion:[${fixVersion}]`);
     const issues = yield filterIssuesWithoutCurrentFixVersion(context, issueKeys, fixVersion);
     if (!issues || issues.length === 0) {
-        return {
-            issueKeys,
-            masterTicketIssueKey: null,
-            linkedIssueKeys: null
-        };
+        return;
     }
     const masterTicketIssueKey = yield getMasterTicketKey(context, fixVersion);
     const linkedIssues = issues.filter(i => { var _a, _b; return (_b = (_a = i.fields) === null || _a === void 0 ? void 0 : _a.issuelinks) === null || _b === void 0 ? void 0 : _b.find(j => j.inwardIssue.key === masterTicketIssueKey); });
     const linkedIssueKeys = linkedIssues.map(issue => issue.key);
+    core.info(`linkedIssueKeys:[${linkedIssueKeys.join(',')}]`);
     const currentIssueKeys = issues.map(issue => issue.key);
+    core.info(`currentIssueKeys:[${currentIssueKeys.join(',')}]`);
     const version = yield getJiraVersion(context, fixVersion);
     const fixVersionUpdate = {
         update: {
@@ -10337,35 +10408,35 @@ const updateJira = (context, issueKeys, fixVersion, prerelease) => __awaiter(voi
         }
     };
     for (const issueKey of currentIssueKeys) {
+        core.info(`start updateIssue:[${issueKey}]`);
         yield jiraApi_1.updateIssue(context, issueKey, fixVersionUpdate);
         if (!prerelease &&
             masterTicketIssueKey &&
             !linkedIssueKeys.find(i => i === issueKey)) {
+            core.info(`start linkIssueToMasterTicket:[issue:${issueKey},masterTicketIssueKey:${masterTicketIssueKey}]`);
             yield linkIssueToMasterTicket(context, masterTicketIssueKey, issueKey);
         }
     }
-    return {
-        issueKeys,
-        masterTicketIssueKey,
-        linkedIssueKeys
-    };
 });
 exports.updateJira = updateJira;
 const filterIssuesWithoutCurrentFixVersion = (context, issueKeys, fixVersion) => __awaiter(void 0, void 0, void 0, function* () {
     const { projectKey } = context;
     const groupedIssues = issueKeys.join(',');
     const searchIssuesWithoutCurrentFixVersion = `project = ${projectKey} AND fixVersion not in (${fixVersion}) AND issuekey in (${groupedIssues})`;
+    core.info(`searchIssuesQuery:[${searchIssuesWithoutCurrentFixVersion}]`);
     const issues = yield jiraApi_1.searchIssues(context, searchIssuesWithoutCurrentFixVersion, ['issuelinks']);
     return issues;
 });
 const getMasterTicketKey = (context, fixVersion) => __awaiter(void 0, void 0, void 0, function* () {
     const { masterProjectKey } = context;
     const masterTicketQuery = `project = ${masterProjectKey} AND fixVersion in (${fixVersion})`;
+    core.info(`masterTicketQuery:[${masterTicketQuery}]`);
     const issues = yield jiraApi_1.searchIssues(context, masterTicketQuery, ['summary']);
     let masterTicketIssueKey = null;
     if (issues && issues.length === 1) {
         masterTicketIssueKey = issues[0].key;
     }
+    core.info(`masterTicketIssueKey:${masterTicketIssueKey}`);
     return masterTicketIssueKey;
 });
 const linkIssueToMasterTicket = (context, masterTicketKey, issueKey) => __awaiter(void 0, void 0, void 0, function* () {
@@ -10395,10 +10466,13 @@ const getJiraVersion = (context, fixVersion) => __awaiter(void 0, void 0, void 0
             released: false,
             projectId: parseInt(projectId)
         };
+        core.info(`version not found. start create version:[${requestedVersion}]`);
         version = yield jiraApi_1.createVersion(context, requestedVersion);
+        core.info(`version created:[${version.id}]`);
     }
     else {
         version = result[0];
+        core.info(`version found:[${version.id}]`);
     }
     return version;
 });
@@ -10475,20 +10549,7 @@ function run() {
                 masterIssueType: core.getInput('JIRA_MASTER_ISSUE_TYPE', { required: true })
             };
             if (process.env.GITHUB_EVENT_NAME === 'push') {
-                const { lastTagName, fixVersion, prerelease, extractedJiraIssues, issueKeys, masterTicketIssueKey, linkedIssueKeys } = yield eventHandler_1.onReleasePush(gitHubContext, jiraContext, tagPrefix);
-                core.setOutput('LAST_TAG_NAME', lastTagName ? lastTagName : 'lastTagName not found');
-                core.setOutput('FIX_VERSION', fixVersion ? fixVersion : 'fixVersion not found');
-                core.setOutput('PRE_RELEASE', prerelease ? 'is prerelease' : 'is not prerelease');
-                core.setOutput('EXTRACTED_ISSUE_KEYS', extractedJiraIssues ? extractedJiraIssues : 'no issue keys extracted');
-                core.setOutput('ISSUE_KEYS', issueKeys && issueKeys.length > 0
-                    ? issueKeys.join(',')
-                    : 'no issue keys found');
-                core.setOutput('MASTER_TICKET_ISSUE_KEY', masterTicketIssueKey
-                    ? masterTicketIssueKey
-                    : 'masterTicketIssueKey not found');
-                core.setOutput('LINKED_ISSUE_KEYS', linkedIssueKeys && linkedIssueKeys.length > 0
-                    ? linkedIssueKeys.join(',')
-                    : 'no linkedIssueKeys keys found');
+                yield eventHandler_1.onReleasePush(gitHubContext, jiraContext, tagPrefix);
             }
             else if (process.env.GITHUB_EVENT_NAME === 'release' &&
                 github.context.action === 'published') {
