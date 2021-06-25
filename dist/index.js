@@ -10257,11 +10257,11 @@ const extractJiraIssues = (releaseVersion, githubWorkspace) => __awaiter(void 0,
     yield promisify_child_process_1.exec(`chmod +x ${__dirname}/../extract-issues`);
     yield promisify_child_process_1.exec(`cd ${githubWorkspace}`);
     const currentPath = yield promisify_child_process_1.exec(`pwd`);
-    core.info(`listRepo:--${currentPath.stdout}--`);
+    core.info(`currentPath:--${currentPath.stdout}--`);
     if (currentPath.stderr) {
         core.error(currentPath.stderr.toString());
     }
-    const fetchTags = yield promisify_child_process_1.exec(`git fetch --prune --unshallow --tags"`);
+    const fetchTags = yield promisify_child_process_1.exec(`git fetch --prune --unshallow --tags`);
     if (fetchTags.stderr) {
         core.error(fetchTags.stderr.toString());
     }

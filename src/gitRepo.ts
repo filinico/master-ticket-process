@@ -8,11 +8,11 @@ export const extractJiraIssues = async (
   await exec(`chmod +x ${__dirname}/../extract-issues`)
   await exec(`cd ${githubWorkspace}`)
   const currentPath = await exec(`pwd`)
-  core.info(`listRepo:--${currentPath.stdout}--`)
+  core.info(`currentPath:--${currentPath.stdout}--`)
   if (currentPath.stderr) {
     core.error(currentPath.stderr.toString())
   }
-  const fetchTags = await exec(`git fetch --prune --unshallow --tags"`)
+  const fetchTags = await exec(`git fetch --prune --unshallow --tags`)
   if (fetchTags.stderr) {
     core.error(fetchTags.stderr.toString())
   }
