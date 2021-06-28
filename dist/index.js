@@ -10330,7 +10330,6 @@ const extractJiraIssues = (releaseVersion, githubWorkspace) => __awaiter(void 0,
     core.info(`issueKeysCommaSeparated:--${stdout}--`);
     if (stderr) {
         core.error(stderr.toString());
-        return [];
     }
     const issueKeysCommaSeparated = stdout;
     return exports.convertScriptResults(issueKeysCommaSeparated);
@@ -10338,7 +10337,7 @@ const extractJiraIssues = (releaseVersion, githubWorkspace) => __awaiter(void 0,
 exports.extractJiraIssues = extractJiraIssues;
 const convertScriptResults = (issueKeysCommaSeparated) => {
     let issueKeys = [];
-    if (issueKeysCommaSeparated) {
+    if (issueKeysCommaSeparated && issueKeysCommaSeparated.includes(',')) {
         const searchRegExp = /\s/g;
         const resultsFormatted = issueKeysCommaSeparated.replace(searchRegExp, '');
         if (resultsFormatted !== '') {

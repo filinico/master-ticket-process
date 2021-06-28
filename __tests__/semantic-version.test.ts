@@ -29,4 +29,6 @@ test('convert script results to array', async () => {
   expect(result2).toEqual([])
   const result3 = convertScriptResults(" \n ")
   expect(result3).toEqual([])
+  const result4 = convertScriptResults("* [new tag]                 6.123.210601.161706.b68de5e -> 6.123.210601.161706.b68de5e")
+  expect(result4).toEqual([])
 })
