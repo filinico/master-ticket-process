@@ -1,4 +1,5 @@
 import {generateNextMinorVersion, generateNextPatchVersion, getVersionFromBranch} from '../src/semantic-version'
+import {convertScriptResults} from '../src/gitRepo'
 
 test('generate next patch version', async () => {
   const nextPatchVersion1 = generateNextPatchVersion("v1.0.0")
@@ -14,9 +15,18 @@ test('generate next minor version', async () => {
   expect(nextMinorVersion2).toEqual("vrs10.6.8")
 })
 
-test('generate next minor version', async () => {
+test('get version from branch', async () => {
   const majorVersion = getVersionFromBranch("refs/heads/release/10.0", "release")
   expect(majorVersion).toEqual("10.0")
   const notReleaseBranch = getVersionFromBranch("refs/heads/test", "release")
   expect(notReleaseBranch).toEqual("refs/heads/test")
+})
+
+test('convert script results to array', async () => {
+  const result1 = convertScriptResults("XX-123, XX-456\n")
+  expect(result1).toEqual(["XX-123","XX-456"])
+  const result2 = convertScriptResults("\r\n")
+  expect(result2).toEqual([])
+  const result3 = convertScriptResults(" \n ")
+  expect(result3).toEqual([])
 })

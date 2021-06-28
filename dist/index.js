@@ -10320,7 +10320,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.extractJiraIssues = void 0;
+exports.convertScriptResults = exports.extractJiraIssues = void 0;
 const promisify_child_process_1 = __nccwpck_require__(2809);
 const core = __importStar(__nccwpck_require__(2186));
 const extractJiraIssues = (releaseVersion, githubWorkspace) => __awaiter(void 0, void 0, void 0, function* () {
@@ -10330,17 +10330,24 @@ const extractJiraIssues = (releaseVersion, githubWorkspace) => __awaiter(void 0,
     core.info(`issueKeysCommaSeparated:--${stdout}--`);
     if (stderr) {
         core.error(stderr.toString());
+        return [];
     }
     const issueKeysCommaSeparated = stdout;
-    let issueKeys = [];
-    if (issueKeysCommaSeparated &&
-        issueKeysCommaSeparated !== '' &&
-        issueKeysCommaSeparated !== ' ') {
-        issueKeys = issueKeysCommaSeparated.split(',');
-    }
-    return issueKeys;
+    return exports.convertScriptResults(issueKeysCommaSeparated);
 });
 exports.extractJiraIssues = extractJiraIssues;
+const convertScriptResults = (issueKeysCommaSeparated) => {
+    let issueKeys = [];
+    if (issueKeysCommaSeparated) {
+        const searchRegExp = /\s/g;
+        const resultsFormatted = issueKeysCommaSeparated.replace(searchRegExp, '');
+        if (resultsFormatted !== '') {
+            issueKeys = resultsFormatted.split(',');
+        }
+    }
+    return issueKeys;
+};
+exports.convertScriptResults = convertScriptResults;
 
 
 /***/ }),

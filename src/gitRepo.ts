@@ -13,15 +13,22 @@ export const extractJiraIssues = async (
   core.info(`issueKeysCommaSeparated:--${stdout}--`)
   if (stderr) {
     core.error(stderr.toString())
+    return []
   }
   const issueKeysCommaSeparated = stdout as string | null
+  return convertScriptResults(issueKeysCommaSeparated)
+}
+
+export const convertScriptResults = (
+  issueKeysCommaSeparated: string | null
+): string[] => {
   let issueKeys: string[] = []
-  if (
-    issueKeysCommaSeparated &&
-    issueKeysCommaSeparated !== '' &&
-    issueKeysCommaSeparated !== ' '
-  ) {
-    issueKeys = issueKeysCommaSeparated.split(',')
+  if (issueKeysCommaSeparated) {
+    const searchRegExp = /\s/g
+    const resultsFormatted = issueKeysCommaSeparated.replace(searchRegExp, '')
+    if (resultsFormatted !== '') {
+      issueKeys = resultsFormatted.split(',')
+    }
   }
   return issueKeys
 }
