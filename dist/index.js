@@ -10814,7 +10814,7 @@ function run() {
             core.info(`Current dir=${__dirname}`);
             core.info(`GITHUB_EVENT_NAME=${process.env.GITHUB_EVENT_NAME}`);
             core.info(`GITHUB context action=${github.context.action}`);
-            core.info(`github context: ${github.context}`);
+            core.info(`github context: ${JSON.stringify(github)}`);
             const octokit = github.getOctokit(githubToken);
             const gitHubContext = {
                 octokit,
