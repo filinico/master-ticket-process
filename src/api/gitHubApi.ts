@@ -132,8 +132,6 @@ export const updateRelease = async (
     body: releaseNote,
     tag_name: tagName,
     target_commitish: targetBranch,
-    name: tagName,
-    prerelease: false,
-    draft: true
+    name: tagName
   })
 }
