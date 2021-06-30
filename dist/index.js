@@ -10267,24 +10267,33 @@ const updateDeliveredIssues = (releaseVersion, workspace, jiraContext, version, 
 const onReleasePublished = (actionContext, jiraContext) => __awaiter(void 0, void 0, void 0, function* () {
     const { context, workspace } = actionContext;
     const { payload: { release: { tag_name, target_commitish, prerelease, id } } } = context;
+    core.info(`tag_name:${tag_name}`);
+    core.info(`target_commitish:${target_commitish}`);
+    core.info(`prerelease:${prerelease}`);
+    core.info(`id:${id}`);
     const releaseVersion = semantic_version_1.getVersionFromBranch(target_commitish, 'release');
+    core.info(`Release version:${releaseVersion}`);
     yield updateDeliveredIssues(releaseVersion, workspace, jiraContext, tag_name, prerelease, id, actionContext);
     const gitHubRelease = yield gitHubApi_1.getReleaseByTagName(actionContext, tag_name);
     const revision = gitHubRelease && gitHubRelease.tagCommit ? gitHubRelease.tagCommit.oid : '';
+    core.info(`revision:${revision}`);
     yield jiraUpdate_1.updateMasterTicket(jiraContext, tag_name, releaseVersion, revision);
     yield createNextVersion(tag_name, target_commitish, actionContext, jiraContext);
 });
 exports.onReleasePublished = onReleasePublished;
 const createNextVersion = (currentVersion, releaseBranch, actionContext, jiraContext) => __awaiter(void 0, void 0, void 0, function* () {
     const nextPatchVersion = semantic_version_1.generateNextPatchVersion(currentVersion);
+    core.info(`nextPatchVersion:${nextPatchVersion}`);
     const nextGitHubRelease = yield gitHubApi_1.getReleaseByTagName(actionContext, nextPatchVersion);
     if (!nextGitHubRelease) {
+        core.info(`request creation of new release :${nextPatchVersion} for ${releaseBranch}`);
         yield gitHubApi_1.createRelease(actionContext, nextPatchVersion, releaseBranch);
     }
     const { projectId, projectKey, masterProjectId, masterProjectKey, masterIssueType } = jiraContext;
     yield jiraUpdate_1.createIfNotExistsJiraVersion(jiraContext, nextPatchVersion, parseInt(projectId), projectKey);
     const masterTicketVersion = yield jiraUpdate_1.createIfNotExistsJiraVersion(jiraContext, nextPatchVersion, parseInt(masterProjectId), masterProjectKey);
     if (masterTicketVersion && masterTicketVersion.id) {
+        core.info(`request creation of master ticket version ${nextPatchVersion} with id  ${masterTicketVersion.id}`);
         yield jiraUpdate_1.createMasterTicket(nextPatchVersion, masterIssueType, masterProjectId, masterTicketVersion.id, jiraContext);
     }
 });
@@ -10803,6 +10812,8 @@ function run() {
             }
             core.info(`GITHUB_WORKSPACE=${process.env.GITHUB_WORKSPACE}`);
             core.info(`Current dir=${__dirname}`);
+            core.info(`GITHUB_EVENT_NAME=${process.env.GITHUB_EVENT_NAME}`);
+            core.info(`GITHUB context action=${github.context.action}`);
             const octokit = github.getOctokit(githubToken);
             const gitHubContext = {
                 octokit,
@@ -10824,14 +10835,19 @@ function run() {
                 masterIssueType: core.getInput('JIRA_MASTER_ISSUE_TYPE', { required: true })
             };
             if (process.env.GITHUB_EVENT_NAME === 'push') {
+                core.info(`start onReleasePush`);
                 yield eventHandler_1.onReleasePush(gitHubContext, jiraContext, tagPrefix);
+                core.info(`releasePush finished`);
             }
             else if (process.env.GITHUB_EVENT_NAME === 'release' &&
                 github.context.action === 'published') {
+                core.info(`start onReleasePublished`);
                 yield eventHandler_1.onReleasePublished(gitHubContext, jiraContext);
+                core.info(`releasePublished finished`);
             }
         }
         catch (error) {
+            core.info(`process terminated, an error happened:`);
             core.setFailed(error.message);
         }
     });

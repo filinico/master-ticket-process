@@ -16,6 +16,8 @@ async function run(): Promise<void> {
 
     core.info(`GITHUB_WORKSPACE=${process.env.GITHUB_WORKSPACE}`)
     core.info(`Current dir=${__dirname}`)
+    core.info(`GITHUB_EVENT_NAME=${process.env.GITHUB_EVENT_NAME}`)
+    core.info(`GITHUB context action=${github.context.action}`)
 
     const octokit = github.getOctokit(githubToken)
     const gitHubContext = {
@@ -39,14 +41,19 @@ async function run(): Promise<void> {
     }
 
     if (process.env.GITHUB_EVENT_NAME === 'push') {
+      core.info(`start onReleasePush`)
       await onReleasePush(gitHubContext, jiraContext, tagPrefix)
+      core.info(`releasePush finished`)
     } else if (
       process.env.GITHUB_EVENT_NAME === 'release' &&
       github.context.action === 'published'
     ) {
+      core.info(`start onReleasePublished`)
       await onReleasePublished(gitHubContext, jiraContext)
+      core.info(`releasePublished finished`)
     }
   } catch (error) {
+    core.info(`process terminated, an error happened:`)
     core.setFailed(error.message)
   }
 }

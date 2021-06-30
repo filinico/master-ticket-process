@@ -113,7 +113,12 @@ export const onReleasePublished = async (
       release: {tag_name, target_commitish, prerelease, id}
     }
   } = context
+  core.info(`tag_name:${tag_name}`)
+  core.info(`target_commitish:${target_commitish}`)
+  core.info(`prerelease:${prerelease}`)
+  core.info(`id:${id}`)
   const releaseVersion = getVersionFromBranch(target_commitish, 'release')
+  core.info(`Release version:${releaseVersion}`)
   await updateDeliveredIssues(
     releaseVersion,
     workspace,
@@ -127,7 +132,7 @@ export const onReleasePublished = async (
   const gitHubRelease = await getReleaseByTagName(actionContext, tag_name)
   const revision =
     gitHubRelease && gitHubRelease.tagCommit ? gitHubRelease.tagCommit.oid : ''
-
+  core.info(`revision:${revision}`)
   await updateMasterTicket(jiraContext, tag_name, releaseVersion, revision)
 
   await createNextVersion(
@@ -145,11 +150,15 @@ const createNextVersion = async (
   jiraContext: JiraContext
 ): Promise<void> => {
   const nextPatchVersion = generateNextPatchVersion(currentVersion)
+  core.info(`nextPatchVersion:${nextPatchVersion}`)
   const nextGitHubRelease = await getReleaseByTagName(
     actionContext,
     nextPatchVersion
   )
   if (!nextGitHubRelease) {
+    core.info(
+      `request creation of new release :${nextPatchVersion} for ${releaseBranch}`
+    )
     await createRelease(actionContext, nextPatchVersion, releaseBranch)
   }
   const {
@@ -175,6 +184,9 @@ const createNextVersion = async (
   )
 
   if (masterTicketVersion && masterTicketVersion.id) {
+    core.info(
+      `request creation of master ticket version ${nextPatchVersion} with id  ${masterTicketVersion.id}`
+    )
     await createMasterTicket(
       nextPatchVersion,
       masterIssueType,
