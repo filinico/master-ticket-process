@@ -93,7 +93,13 @@ const updateDeliveredIssues = async (
   await updateJira(jiraContext, issueKeys, version, prerelease)
   if (!prerelease && releaseId) {
     const releaseNote = await generateReleaseNote(version, jiraContext)
-    await updateRelease(actionContext, releaseId, releaseNote)
+    await updateRelease(
+      actionContext,
+      releaseId,
+      releaseNote,
+      version,
+      `release/${releaseVersion}`
+    )
   }
 }
 

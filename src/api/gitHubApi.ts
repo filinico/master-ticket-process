@@ -126,13 +126,20 @@ export const createRelease = async (
 export const updateRelease = async (
   actionContext: GitHubContext,
   releaseId: number,
-  releaseNote: string
+  releaseNote: string,
+  tagName: string,
+  targetBranch: string
 ): Promise<void> => {
   const {octokit, context} = actionContext
   await octokit.repos.updateRelease({
     owner: context.repo.owner,
     repo: context.repo.repo,
     release_id: releaseId,
-    body: releaseNote
+    body: releaseNote,
+    tag_name: tagName,
+    target_commitish: targetBranch,
+    name: tagName,
+    prerelease: false,
+    draft: true
   })
 }

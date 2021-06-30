@@ -9993,13 +9993,18 @@ const createRelease = (actionContext, tagName, targetBranch) => __awaiter(void 0
     });
 });
 exports.createRelease = createRelease;
-const updateRelease = (actionContext, releaseId, releaseNote) => __awaiter(void 0, void 0, void 0, function* () {
+const updateRelease = (actionContext, releaseId, releaseNote, tagName, targetBranch) => __awaiter(void 0, void 0, void 0, function* () {
     const { octokit, context } = actionContext;
     yield octokit.repos.updateRelease({
         owner: context.repo.owner,
         repo: context.repo.repo,
         release_id: releaseId,
-        body: releaseNote
+        body: releaseNote,
+        tag_name: tagName,
+        target_commitish: targetBranch,
+        name: tagName,
+        prerelease: false,
+        draft: true
     });
 });
 exports.updateRelease = updateRelease;
@@ -10256,7 +10261,7 @@ const updateDeliveredIssues = (releaseVersion, workspace, jiraContext, version, 
     yield jiraUpdate_1.updateJira(jiraContext, issueKeys, version, prerelease);
     if (!prerelease && releaseId) {
         const releaseNote = yield jiraUpdate_1.generateReleaseNote(version, jiraContext);
-        yield gitHubApi_1.updateRelease(actionContext, releaseId, releaseNote);
+        yield gitHubApi_1.updateRelease(actionContext, releaseId, releaseNote, version, `release/${releaseVersion}`);
     }
 });
 const onReleasePublished = (actionContext, jiraContext) => __awaiter(void 0, void 0, void 0, function* () {
