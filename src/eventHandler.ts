@@ -110,7 +110,8 @@ export const onReleasePublished = async (
   const {context, workspace} = actionContext
   const {
     payload: {
-      release: {tag_name, target_commitish, prerelease, id}
+      release: {tag_name, target_commitish, prerelease, id},
+      sha
     }
   } = context
   core.info(`tag_name:${tag_name}`)
@@ -129,11 +130,8 @@ export const onReleasePublished = async (
     actionContext
   )
 
-  const gitHubRelease = await getReleaseByTagName(actionContext, tag_name)
-  const revision =
-    gitHubRelease && gitHubRelease.tagCommit ? gitHubRelease.tagCommit.oid : ''
-  core.info(`revision:${revision}`)
-  await updateMasterTicket(jiraContext, tag_name, releaseVersion, revision)
+  core.info(`revision:${sha}`)
+  await updateMasterTicket(jiraContext, tag_name, releaseVersion, sha)
 
   await createNextVersion(
     tag_name,

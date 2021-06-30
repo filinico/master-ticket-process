@@ -9962,9 +9962,6 @@ query getReleaseByTagName($owner: String!, $repo: String!, $tagName: String!) {
       tagName
       publishedAt
       isPrerelease
-      tagCommit {
-        oid
-      }
     }
   }
 }
@@ -10266,7 +10263,7 @@ const updateDeliveredIssues = (releaseVersion, workspace, jiraContext, version, 
 });
 const onReleasePublished = (actionContext, jiraContext) => __awaiter(void 0, void 0, void 0, function* () {
     const { context, workspace } = actionContext;
-    const { payload: { release: { tag_name, target_commitish, prerelease, id } } } = context;
+    const { payload: { release: { tag_name, target_commitish, prerelease, id }, sha } } = context;
     core.info(`tag_name:${tag_name}`);
     core.info(`target_commitish:${target_commitish}`);
     core.info(`prerelease:${prerelease}`);
@@ -10274,10 +10271,8 @@ const onReleasePublished = (actionContext, jiraContext) => __awaiter(void 0, voi
     const releaseVersion = semantic_version_1.getVersionFromBranch(target_commitish, 'release');
     core.info(`Release version:${releaseVersion}`);
     yield updateDeliveredIssues(releaseVersion, workspace, jiraContext, tag_name, prerelease, id, actionContext);
-    const gitHubRelease = yield gitHubApi_1.getReleaseByTagName(actionContext, tag_name);
-    const revision = gitHubRelease && gitHubRelease.tagCommit ? gitHubRelease.tagCommit.oid : '';
-    core.info(`revision:${revision}`);
-    yield jiraUpdate_1.updateMasterTicket(jiraContext, tag_name, releaseVersion, revision);
+    core.info(`revision:${sha}`);
+    yield jiraUpdate_1.updateMasterTicket(jiraContext, tag_name, releaseVersion, sha);
     yield createNextVersion(tag_name, target_commitish, actionContext, jiraContext);
 });
 exports.onReleasePublished = onReleasePublished;
@@ -10813,8 +10808,7 @@ function run() {
             core.info(`GITHUB_WORKSPACE=${process.env.GITHUB_WORKSPACE}`);
             core.info(`Current dir=${__dirname}`);
             core.info(`GITHUB_EVENT_NAME=${process.env.GITHUB_EVENT_NAME}`);
-            core.info(`GITHUB context action=${github.context.action}`);
-            core.info(`github context: ${JSON.stringify(github)}`);
+            core.info(`GITHUB context action=${github.context.payload.action}`);
             const octokit = github.getOctokit(githubToken);
             const gitHubContext = {
                 octokit,
@@ -10841,7 +10835,7 @@ function run() {
                 core.info(`releasePush finished`);
             }
             else if (process.env.GITHUB_EVENT_NAME === 'release' &&
-                github.context.action === 'published') {
+                github.context.payload.action === 'published') {
                 core.info(`start onReleasePublished`);
                 yield eventHandler_1.onReleasePublished(gitHubContext, jiraContext);
                 core.info(`releasePublished finished`);

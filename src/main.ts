@@ -17,8 +17,7 @@ async function run(): Promise<void> {
     core.info(`GITHUB_WORKSPACE=${process.env.GITHUB_WORKSPACE}`)
     core.info(`Current dir=${__dirname}`)
     core.info(`GITHUB_EVENT_NAME=${process.env.GITHUB_EVENT_NAME}`)
-    core.info(`GITHUB context action=${github.context.action}`)
-    core.info(`github context: ${JSON.stringify(github)}`)
+    core.info(`GITHUB context action=${github.context.payload.action}`)
 
     const octokit = github.getOctokit(githubToken)
     const gitHubContext = {
@@ -47,7 +46,7 @@ async function run(): Promise<void> {
       core.info(`releasePush finished`)
     } else if (
       process.env.GITHUB_EVENT_NAME === 'release' &&
-      github.context.action === 'published'
+      github.context.payload.action === 'published'
     ) {
       core.info(`start onReleasePublished`)
       await onReleasePublished(gitHubContext, jiraContext)
