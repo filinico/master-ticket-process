@@ -9999,9 +9999,7 @@ const updateRelease = (actionContext, releaseId, releaseNote, tagName, targetBra
         body: releaseNote,
         tag_name: tagName,
         target_commitish: targetBranch,
-        name: tagName,
-        prerelease: false,
-        draft: true
+        name: tagName
     });
 });
 exports.updateRelease = updateRelease;
@@ -10139,6 +10137,7 @@ const createIssue = (context, data) => __awaiter(void 0, void 0, void 0, functio
     const { subDomain, email, token } = context;
     try {
         core.info('request createIssue');
+        core.info(`createIssue:${JSON.stringify(data)}`);
         const response = yield axios_1.default.post(`https://${subDomain}.atlassian.net/rest/api/3/issue`, data, getAuthHeaders(email, token));
         core.info(`createIssue successful`);
         return response === null || response === void 0 ? void 0 : response.data;

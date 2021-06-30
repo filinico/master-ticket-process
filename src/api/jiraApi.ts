@@ -295,6 +295,7 @@ export const createIssue = async (
   const {subDomain, email, token} = context
   try {
     core.info('request createIssue')
+    core.info(`createIssue:${JSON.stringify(data)}`)
     const response = await axios.post(
       `https://${subDomain}.atlassian.net/rest/api/3/issue`,
       data,
