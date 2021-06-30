@@ -9,8 +9,13 @@ import {
   generateNextPatchVersion,
   getVersionFromBranch
 } from './semantic-version'
-import {updateJira} from './jiraUpdate'
-import {createIssue, createVersion, JiraContext} from './api/jiraApi'
+import {
+  createIfNotExistsJiraVersion,
+  createMasterTicket,
+  updateJira,
+  updateMasterTicket
+} from './jiraUpdate'
+import {JiraContext} from './api/jiraApi'
 import {extractJiraIssues} from './gitRepo'
 import * as core from '@actions/core'
 
@@ -58,12 +63,25 @@ export const onReleasePush = async (
   }
   core.info(`fixVersion:${fixVersion}`)
   if (fixVersion) {
-    const extractedJiraIssues = await extractJiraIssues(
+    await updateDeliveredIssues(
       releaseVersion,
-      workspace
+      workspace,
+      jiraContext,
+      fixVersion,
+      prerelease
     )
-    await updateJira(jiraContext, extractedJiraIssues, fixVersion, prerelease)
   }
+}
+
+const updateDeliveredIssues = async (
+  releaseVersion: string,
+  workspace: string,
+  jiraContext: JiraContext,
+  version: string,
+  prerelease: boolean
+): Promise<void> => {
+  const issueKeys = await extractJiraIssues(releaseVersion, workspace)
+  await updateJira(jiraContext, issueKeys, version, prerelease)
 }
 
 export const onReleasePublished = async (
@@ -77,54 +95,71 @@ export const onReleasePublished = async (
     }
   } = context
   const releaseVersion = getVersionFromBranch(target_commitish, 'release')
-  const issueKeys = await extractJiraIssues(releaseVersion, workspace)
-  await updateJira(jiraContext, issueKeys, tag_name, prerelease)
-  const nextPatchVersion = generateNextPatchVersion(tag_name)
-  await createRelease(actionContext, nextPatchVersion, target_commitish)
-  const {projectId, masterProjectId, masterIssueType} = jiraContext
-  const version = {
-    name: tag_name,
-    archived: false,
-    released: false
+  await updateDeliveredIssues(
+    releaseVersion,
+    workspace,
+    jiraContext,
+    tag_name,
+    prerelease
+  )
+
+  const gitHubRelease = await getReleaseByTagName(actionContext, tag_name)
+  const revision =
+    gitHubRelease && gitHubRelease.tagCommit ? gitHubRelease.tagCommit.oid : ''
+
+  await updateMasterTicket(jiraContext, tag_name, releaseVersion, revision)
+
+  await createNextVersion(
+    tag_name,
+    target_commitish,
+    actionContext,
+    jiraContext
+  )
+}
+
+const createNextVersion = async (
+  currentVersion: string,
+  releaseBranch: string,
+  actionContext: GitHubContext,
+  jiraContext: JiraContext
+): Promise<void> => {
+  const nextPatchVersion = generateNextPatchVersion(currentVersion)
+  const nextGitHubRelease = await getReleaseByTagName(
+    actionContext,
+    nextPatchVersion
+  )
+  if (!nextGitHubRelease) {
+    await createRelease(actionContext, nextPatchVersion, releaseBranch)
   }
-  await createVersion(jiraContext, {
-    ...version,
-    projectId: parseInt(projectId)
-  })
-  const masterTicketVersion = await createVersion(jiraContext, {
-    ...version,
-    projectId: parseInt(masterProjectId)
-  })
-  await createIssue(jiraContext, {
-    update: {},
-    fields: {
-      summary: `${tag_name} Master Ticket`,
-      issuetype: {
-        id: masterIssueType
-      },
-      project: {
-        id: masterProjectId.toString()
-      },
-      description: {
-        type: 'doc',
-        version: 1,
-        content: [
-          {
-            type: 'paragraph',
-            content: [
-              {
-                text: 'Not released yet.',
-                type: 'text'
-              }
-            ]
-          }
-        ]
-      },
-      fixVersions: [
-        {
-          id: masterTicketVersion.id ? masterTicketVersion.id.toString() : ''
-        }
-      ]
-    }
-  })
+  const {
+    projectId,
+    projectKey,
+    masterProjectId,
+    masterProjectKey,
+    masterIssueType
+  } = jiraContext
+
+  await createIfNotExistsJiraVersion(
+    jiraContext,
+    nextPatchVersion,
+    parseInt(projectId),
+    projectKey
+  )
+
+  const masterTicketVersion = await createIfNotExistsJiraVersion(
+    jiraContext,
+    nextPatchVersion,
+    parseInt(masterProjectId),
+    masterProjectKey
+  )
+
+  if (masterTicketVersion && masterTicketVersion.id) {
+    await createMasterTicket(
+      nextPatchVersion,
+      masterIssueType,
+      masterProjectId,
+      masterTicketVersion.id,
+      jiraContext
+    )
+  }
 }

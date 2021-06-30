@@ -67,6 +67,9 @@ export interface GitHubRelease {
   tagName: string
   publishedAt: string
   isPrerelease: boolean
+  tagCommit?: {
+    oid: string
+  }
 }
 
 const getReleaseByTagNameQuery = `
@@ -77,6 +80,9 @@ query getReleaseByTagName($owner: String!, $repo: String!, $tagName: String!) {
       tagName
       publishedAt
       isPrerelease
+      tagCommit {
+        oid
+      }
     }
   }
 }

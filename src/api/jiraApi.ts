@@ -60,31 +60,66 @@ export interface CreateIssueLink {
   }
 }
 
-export interface JiraIssue {
-  update: {}
-  fields: {
-    summary: string
-    issuetype: {
-      id: string
-    }
-    project: {
-      id: string
-    }
-    description: {
-      type: string
-      version: number
-      content: {
-        type: string
-        content: {
-          type: string
-          text: string
-        }[]
-      }[]
-    }
-    fixVersions: {
-      id: string
-    }[]
+interface JiraIssueDescriptionContent {
+  type: string
+  attrs?: {
+    isNumberColumnEnabled?: boolean
+    layout?: string
+    url?: string
   }
+  content?: (JiraIssueDescriptionContent | JiraIssueDescriptionText)[]
+}
+
+interface JiraIssueDescriptionText {
+  type: string
+  text: string
+  marks?: {
+    type: string
+  }[]
+}
+
+interface JiraCustomField {
+  value: string
+  child?: {
+    value: string
+  }
+}
+
+interface JiraFields {
+  summary?: string
+  issuetype?: {
+    id: string
+  }
+  project?: {
+    id: string
+  }
+  description?: {
+    type: string
+    version: number
+    content: JiraIssueDescriptionContent[]
+  }
+  fixVersions?: {
+    id: string
+  }[]
+  customfield_23944?: JiraCustomField
+  customfield_23710?: JiraCustomField
+  customfield_21603?: JiraCustomField
+  customfield_23713?: JiraCustomField
+  customfield_23604?: JiraCustomField
+  customfield_23599?: JiraCustomField
+}
+
+interface JiraIssueUpdate {
+  fixVersions?: [
+    {
+      add: {id?: string}
+    }
+  ]
+}
+
+export interface JiraIssue {
+  update: JiraIssueUpdate
+  fields?: JiraFields
 }
 
 export interface CreatedIssue {
@@ -114,16 +149,6 @@ export interface JiraVersion {
   projectId?: number
   description?: string
   overdue?: boolean
-}
-
-export interface UpdateFixVersion {
-  update: {
-    fixVersions: [
-      {
-        add: {id?: string}
-      }
-    ]
-  }
 }
 
 const getAuthHeaders = (email: string, token: string): AuthHeaders => {
@@ -195,9 +220,10 @@ export const createVersion = async (
 }
 
 export const listProjectVersions = async (
-  context: JiraContext
+  context: JiraContext,
+  projectKey: string
 ): Promise<JiraVersion[]> => {
-  const {subDomain, email, token, projectKey} = context
+  const {subDomain, email, token} = context
   try {
     core.info(`request listProjectVersions ${projectKey}`)
     const response = await axios.get(
@@ -218,7 +244,7 @@ export const listProjectVersions = async (
 export const updateIssue = async (
   context: JiraContext,
   issueKey: string,
-  data: UpdateFixVersion
+  data: JiraIssue
 ): Promise<void> => {
   const {subDomain, email, token} = context
   try {

@@ -9961,6 +9961,9 @@ query getReleaseByTagName($owner: String!, $repo: String!, $tagName: String!) {
       tagName
       publishedAt
       isPrerelease
+      tagCommit {
+        oid
+      }
     }
   }
 }
@@ -10086,8 +10089,8 @@ const createVersion = (context, version) => __awaiter(void 0, void 0, void 0, fu
     }
 });
 exports.createVersion = createVersion;
-const listProjectVersions = (context) => __awaiter(void 0, void 0, void 0, function* () {
-    const { subDomain, email, token, projectKey } = context;
+const listProjectVersions = (context, projectKey) => __awaiter(void 0, void 0, void 0, function* () {
+    const { subDomain, email, token } = context;
     try {
         core.info(`request listProjectVersions ${projectKey}`);
         const response = yield axios_1.default.get(`https://${subDomain}.atlassian.net/rest/api/3/project/${projectKey}/versions`, getAuthHeaders(email, token));
@@ -10194,7 +10197,6 @@ exports.onReleasePublished = exports.onReleasePush = void 0;
 const gitHubApi_1 = __nccwpck_require__(793);
 const semantic_version_1 = __nccwpck_require__(6052);
 const jiraUpdate_1 = __nccwpck_require__(556);
-const jiraApi_1 = __nccwpck_require__(8286);
 const gitRepo_1 = __nccwpck_require__(9750);
 const core = __importStar(__nccwpck_require__(2186));
 const onReleasePush = (actionContext, jiraContext, tagPrefix) => __awaiter(void 0, void 0, void 0, function* () {
@@ -10227,61 +10229,38 @@ const onReleasePush = (actionContext, jiraContext, tagPrefix) => __awaiter(void 
     }
     core.info(`fixVersion:${fixVersion}`);
     if (fixVersion) {
-        const extractedJiraIssues = yield gitRepo_1.extractJiraIssues(releaseVersion, workspace);
-        yield jiraUpdate_1.updateJira(jiraContext, extractedJiraIssues, fixVersion, prerelease);
+        yield updateDeliveredIssues(releaseVersion, workspace, jiraContext, fixVersion, prerelease);
     }
 });
 exports.onReleasePush = onReleasePush;
+const updateDeliveredIssues = (releaseVersion, workspace, jiraContext, version, prerelease) => __awaiter(void 0, void 0, void 0, function* () {
+    const issueKeys = yield gitRepo_1.extractJiraIssues(releaseVersion, workspace);
+    yield jiraUpdate_1.updateJira(jiraContext, issueKeys, version, prerelease);
+});
 const onReleasePublished = (actionContext, jiraContext) => __awaiter(void 0, void 0, void 0, function* () {
     const { context, workspace } = actionContext;
     const { payload: { release: { tag_name, target_commitish, prerelease } } } = context;
     const releaseVersion = semantic_version_1.getVersionFromBranch(target_commitish, 'release');
-    const issueKeys = yield gitRepo_1.extractJiraIssues(releaseVersion, workspace);
-    yield jiraUpdate_1.updateJira(jiraContext, issueKeys, tag_name, prerelease);
-    const nextPatchVersion = semantic_version_1.generateNextPatchVersion(tag_name);
-    yield gitHubApi_1.createRelease(actionContext, nextPatchVersion, target_commitish);
-    const { projectId, masterProjectId, masterIssueType } = jiraContext;
-    const version = {
-        name: tag_name,
-        archived: false,
-        released: false
-    };
-    yield jiraApi_1.createVersion(jiraContext, Object.assign(Object.assign({}, version), { projectId: parseInt(projectId) }));
-    const masterTicketVersion = yield jiraApi_1.createVersion(jiraContext, Object.assign(Object.assign({}, version), { projectId: parseInt(masterProjectId) }));
-    yield jiraApi_1.createIssue(jiraContext, {
-        update: {},
-        fields: {
-            summary: `${tag_name} Master Ticket`,
-            issuetype: {
-                id: masterIssueType
-            },
-            project: {
-                id: masterProjectId.toString()
-            },
-            description: {
-                type: 'doc',
-                version: 1,
-                content: [
-                    {
-                        type: 'paragraph',
-                        content: [
-                            {
-                                text: 'Not released yet.',
-                                type: 'text'
-                            }
-                        ]
-                    }
-                ]
-            },
-            fixVersions: [
-                {
-                    id: masterTicketVersion.id ? masterTicketVersion.id.toString() : ''
-                }
-            ]
-        }
-    });
+    yield updateDeliveredIssues(releaseVersion, workspace, jiraContext, tag_name, prerelease);
+    const gitHubRelease = yield gitHubApi_1.getReleaseByTagName(actionContext, tag_name);
+    const revision = gitHubRelease && gitHubRelease.tagCommit ? gitHubRelease.tagCommit.oid : '';
+    yield jiraUpdate_1.updateMasterTicket(jiraContext, tag_name, releaseVersion, revision);
+    yield createNextVersion(tag_name, target_commitish, actionContext, jiraContext);
 });
 exports.onReleasePublished = onReleasePublished;
+const createNextVersion = (currentVersion, releaseBranch, actionContext, jiraContext) => __awaiter(void 0, void 0, void 0, function* () {
+    const nextPatchVersion = semantic_version_1.generateNextPatchVersion(currentVersion);
+    const nextGitHubRelease = yield gitHubApi_1.getReleaseByTagName(actionContext, nextPatchVersion);
+    if (!nextGitHubRelease) {
+        yield gitHubApi_1.createRelease(actionContext, nextPatchVersion, releaseBranch);
+    }
+    const { projectId, projectKey, masterProjectId, masterProjectKey, masterIssueType } = jiraContext;
+    yield jiraUpdate_1.createIfNotExistsJiraVersion(jiraContext, nextPatchVersion, parseInt(projectId), projectKey);
+    const masterTicketVersion = yield jiraUpdate_1.createIfNotExistsJiraVersion(jiraContext, nextPatchVersion, parseInt(masterProjectId), masterProjectKey);
+    if (masterTicketVersion && masterTicketVersion.id) {
+        yield jiraUpdate_1.createMasterTicket(nextPatchVersion, masterIssueType, masterProjectId, masterTicketVersion.id, jiraContext);
+    }
+});
 
 
 /***/ }),
@@ -10385,7 +10364,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.updateJira = void 0;
+exports.createMasterTicket = exports.updateMasterTicket = exports.createIfNotExistsJiraVersion = exports.getMasterTicketKey = exports.updateJira = void 0;
 const jiraApi_1 = __nccwpck_require__(8286);
 const core = __importStar(__nccwpck_require__(2186));
 const updateJira = (context, issueKeys, fixVersion, prerelease) => __awaiter(void 0, void 0, void 0, function* () {
@@ -10397,13 +10376,14 @@ const updateJira = (context, issueKeys, fixVersion, prerelease) => __awaiter(voi
     if (!issues || issues.length === 0) {
         return;
     }
-    const masterTicketIssueKey = yield getMasterTicketKey(context, fixVersion);
+    const masterTicketIssueKey = yield exports.getMasterTicketKey(context, fixVersion);
     const linkedIssues = issues.filter(i => { var _a, _b; return (_b = (_a = i.fields) === null || _a === void 0 ? void 0 : _a.issuelinks) === null || _b === void 0 ? void 0 : _b.find(j => j.inwardIssue.key === masterTicketIssueKey); });
     const linkedIssueKeys = linkedIssues.map(issue => issue.key);
     core.info(`linkedIssueKeys:[${linkedIssueKeys.join(',')}]`);
     const currentIssueKeys = issues.map(issue => issue.key);
     core.info(`currentIssueKeys:[${currentIssueKeys.join(',')}]`);
-    const version = yield getJiraVersion(context, fixVersion);
+    const { projectId, projectKey } = context;
+    const version = yield exports.createIfNotExistsJiraVersion(context, fixVersion, parseInt(projectId), projectKey);
     const fixVersionUpdate = {
         update: {
             fixVersions: [
@@ -10430,8 +10410,9 @@ const filterIssuesWithoutCurrentFixVersion = (context, issueKeys, fixVersion) =>
     const groupedIssues = issueKeys.join(',');
     const searchIssuesWithoutCurrentFixVersion = `project = ${projectKey} AND fixVersion not in (${fixVersion}) AND issuekey in (${groupedIssues})`;
     core.info(`searchIssuesQuery:[${searchIssuesWithoutCurrentFixVersion}]`);
-    const issues = yield jiraApi_1.searchIssues(context, searchIssuesWithoutCurrentFixVersion, ['issuelinks']);
-    return issues;
+    return yield jiraApi_1.searchIssues(context, searchIssuesWithoutCurrentFixVersion, [
+        'issuelinks'
+    ]);
 });
 const getMasterTicketKey = (context, fixVersion) => __awaiter(void 0, void 0, void 0, function* () {
     const { masterProjectKey } = context;
@@ -10445,24 +10426,23 @@ const getMasterTicketKey = (context, fixVersion) => __awaiter(void 0, void 0, vo
     core.info(`masterTicketIssueKey:${masterTicketIssueKey}`);
     return masterTicketIssueKey;
 });
+exports.getMasterTicketKey = getMasterTicketKey;
 const linkIssueToMasterTicket = (context, masterTicketKey, issueKey) => __awaiter(void 0, void 0, void 0, function* () {
-    const { masterIssueType } = context;
     const issueLink = {
         type: {
-            name: masterIssueType
+            name: 'Drives'
         },
         inwardIssue: {
-            key: masterTicketKey
+            key: issueKey
         },
         outwardIssue: {
-            key: issueKey
+            key: masterTicketKey
         }
     };
     yield jiraApi_1.createIssueLink(context, issueLink);
 });
-const getJiraVersion = (context, fixVersion) => __awaiter(void 0, void 0, void 0, function* () {
-    const { projectId } = context;
-    const versions = yield jiraApi_1.listProjectVersions(context);
+const createIfNotExistsJiraVersion = (context, fixVersion, projectId, projectKey) => __awaiter(void 0, void 0, void 0, function* () {
+    const versions = yield jiraApi_1.listProjectVersions(context, projectKey);
     const result = versions.filter(i => i.name === fixVersion);
     let version;
     if (!result || result.length === 0) {
@@ -10470,7 +10450,7 @@ const getJiraVersion = (context, fixVersion) => __awaiter(void 0, void 0, void 0
             name: fixVersion,
             archived: false,
             released: false,
-            projectId: parseInt(projectId)
+            projectId
         };
         core.info(`version not found. start create version:[${requestedVersion}]`);
         version = yield jiraApi_1.createVersion(context, requestedVersion);
@@ -10482,6 +10462,257 @@ const getJiraVersion = (context, fixVersion) => __awaiter(void 0, void 0, void 0
     }
     return version;
 });
+exports.createIfNotExistsJiraVersion = createIfNotExistsJiraVersion;
+const updateMasterTicket = (jiraContext, version, releaseVersion, revision) => __awaiter(void 0, void 0, void 0, function* () {
+    const masterTicketKey = yield exports.getMasterTicketKey(jiraContext, version);
+    if (masterTicketKey) {
+        yield jiraApi_1.updateIssue(jiraContext, masterTicketKey, {
+            update: {},
+            fields: {
+                customfield_23713: {
+                    value: `https://github.com/coupa/treasury_tm5/releases/tag/${version}`
+                },
+                customfield_23604: {
+                    value: `https://github.com/coupa/treasury_tm5/tree/release/${releaseVersion}`
+                },
+                customfield_23599: {
+                    value: revision
+                },
+                description: {
+                    type: 'doc',
+                    version: 1,
+                    content: [
+                        {
+                            type: 'table',
+                            attrs: {
+                                isNumberColumnEnabled: false,
+                                layout: 'default'
+                            },
+                            content: [
+                                {
+                                    type: 'tableRow',
+                                    content: [
+                                        {
+                                            type: 'tableCell',
+                                            attrs: {},
+                                            content: [
+                                                {
+                                                    type: 'paragraph',
+                                                    content: [
+                                                        {
+                                                            type: 'text',
+                                                            text: 'GitHub Tag',
+                                                            marks: [
+                                                                {
+                                                                    type: 'strong'
+                                                                }
+                                                            ]
+                                                        },
+                                                        {
+                                                            type: 'text',
+                                                            text: ' '
+                                                        },
+                                                        {
+                                                            type: 'text',
+                                                            text: '(tag on final commit) *',
+                                                            marks: [
+                                                                {
+                                                                    type: 'em'
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            type: 'tableCell',
+                                            attrs: {},
+                                            content: [
+                                                {
+                                                    type: 'paragraph',
+                                                    content: [
+                                                        {
+                                                            type: 'text',
+                                                            text: version
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {
+                                    type: 'tableRow',
+                                    content: [
+                                        {
+                                            type: 'tableCell',
+                                            attrs: {},
+                                            content: [
+                                                {
+                                                    type: 'paragraph',
+                                                    content: [
+                                                        {
+                                                            type: 'text',
+                                                            text: 'Branch',
+                                                            marks: [
+                                                                {
+                                                                    type: 'strong'
+                                                                }
+                                                            ]
+                                                        },
+                                                        {
+                                                            type: 'text',
+                                                            text: ' '
+                                                        },
+                                                        {
+                                                            type: 'text',
+                                                            text: '(From GitHub for current release) *',
+                                                            marks: [
+                                                                {
+                                                                    type: 'em'
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            type: 'tableCell',
+                                            attrs: {},
+                                            content: [
+                                                {
+                                                    type: 'paragraph',
+                                                    content: [
+                                                        {
+                                                            type: 'inlineCard',
+                                                            attrs: {
+                                                                url: `https://github.com/coupa/treasury_tm5/tree/release/${releaseVersion}`
+                                                            }
+                                                        },
+                                                        {
+                                                            type: 'text',
+                                                            text: ' '
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {
+                                    type: 'tableRow',
+                                    content: [
+                                        {
+                                            type: 'tableCell',
+                                            attrs: {},
+                                            content: [
+                                                {
+                                                    type: 'paragraph',
+                                                    content: [
+                                                        {
+                                                            type: 'text',
+                                                            text: 'Commit',
+                                                            marks: [
+                                                                {
+                                                                    type: 'strong'
+                                                                }
+                                                            ]
+                                                        },
+                                                        {
+                                                            type: 'text',
+                                                            text: ' '
+                                                        },
+                                                        {
+                                                            type: 'text',
+                                                            text: '(required in the “Revision” field) *',
+                                                            marks: [
+                                                                {
+                                                                    type: 'em'
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            type: 'tableCell',
+                                            attrs: {},
+                                            content: [
+                                                {
+                                                    type: 'paragraph',
+                                                    content: [
+                                                        {
+                                                            type: 'text',
+                                                            text: revision
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        });
+    }
+});
+exports.updateMasterTicket = updateMasterTicket;
+const createMasterTicket = (version, masterIssueType, masterProjectId, masterTicketVersionId, jiraContext) => __awaiter(void 0, void 0, void 0, function* () {
+    const masterTicket = yield exports.getMasterTicketKey(jiraContext, version);
+    if (!masterTicket) {
+        yield jiraApi_1.createIssue(jiraContext, {
+            update: {},
+            fields: {
+                summary: `${version} Master Ticket`,
+                issuetype: {
+                    id: masterIssueType
+                },
+                project: {
+                    id: masterProjectId
+                },
+                description: {
+                    type: 'doc',
+                    version: 1,
+                    content: [
+                        {
+                            type: 'paragraph',
+                            content: [
+                                {
+                                    text: 'Not released yet.',
+                                    type: 'text'
+                                }
+                            ]
+                        }
+                    ]
+                },
+                fixVersions: [
+                    {
+                        id: masterTicketVersionId
+                    }
+                ],
+                customfield_23944: {
+                    value: 'DU'
+                },
+                customfield_23710: {
+                    value: 'Power App',
+                    child: {
+                        value: 'Treasury Management (CTM)'
+                    }
+                },
+                customfield_21603: {
+                    value: 'Treasury Management (CTM)'
+                }
+            }
+        });
+    }
+});
+exports.createMasterTicket = createMasterTicket;
 
 
 /***/ }),
