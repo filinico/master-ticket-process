@@ -110,6 +110,30 @@ interface JiraFields {
 }
 
 interface JiraIssueUpdate {
+  customfield_23713?: [
+    {
+      set: string
+    }
+  ]
+  customfield_23604?: [
+    {
+      set: string
+    }
+  ]
+  customfield_23599?: [
+    {
+      set: string
+    }
+  ]
+  description?: [
+    {
+      set: {
+        type: string
+        version: number
+        content: JiraIssueDescriptionContent[]
+      }
+    }
+  ]
   fixVersions?: [
     {
       add: {id?: string}

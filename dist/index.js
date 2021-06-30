@@ -10504,57 +10504,81 @@ const updateMasterTicket = (jiraContext, version, releaseVersion, revision) => _
     const masterTicketKey = yield exports.getMasterTicketKey(jiraContext, version);
     if (masterTicketKey) {
         yield jiraApi_1.updateIssue(jiraContext, masterTicketKey, {
-            update: {},
-            fields: {
-                customfield_23713: {
-                    value: `https://github.com/coupa/treasury_tm5/releases/tag/${version}`
-                },
-                customfield_23604: {
-                    value: `https://github.com/coupa/treasury_tm5/tree/release/${releaseVersion}`
-                },
-                customfield_23599: {
-                    value: revision
-                },
-                description: {
-                    type: 'doc',
-                    version: 1,
-                    content: [
-                        {
-                            type: 'table',
-                            attrs: {
-                                isNumberColumnEnabled: false,
-                                layout: 'default'
-                            },
+            update: {
+                customfield_23713: [
+                    {
+                        set: `https://github.com/coupa/treasury_tm5/releases/tag/${version}`
+                    }
+                ],
+                customfield_23604: [
+                    {
+                        set: `https://github.com/coupa/treasury_tm5/tree/release/${releaseVersion}`
+                    }
+                ],
+                customfield_23599: [
+                    {
+                        set: revision
+                    }
+                ],
+                description: [
+                    {
+                        set: {
+                            type: 'doc',
+                            version: 1,
                             content: [
                                 {
-                                    type: 'tableRow',
+                                    type: 'table',
+                                    attrs: {
+                                        isNumberColumnEnabled: false,
+                                        layout: 'default'
+                                    },
                                     content: [
                                         {
-                                            type: 'tableCell',
-                                            attrs: {},
+                                            type: 'tableRow',
                                             content: [
                                                 {
-                                                    type: 'paragraph',
+                                                    type: 'tableCell',
+                                                    attrs: {},
                                                     content: [
                                                         {
-                                                            type: 'text',
-                                                            text: 'GitHub Tag',
-                                                            marks: [
+                                                            type: 'paragraph',
+                                                            content: [
                                                                 {
-                                                                    type: 'strong'
+                                                                    type: 'text',
+                                                                    text: 'GitHub Tag',
+                                                                    marks: [
+                                                                        {
+                                                                            type: 'strong'
+                                                                        }
+                                                                    ]
+                                                                },
+                                                                {
+                                                                    type: 'text',
+                                                                    text: ' '
+                                                                },
+                                                                {
+                                                                    type: 'text',
+                                                                    text: '(tag on final commit) *',
+                                                                    marks: [
+                                                                        {
+                                                                            type: 'em'
+                                                                        }
+                                                                    ]
                                                                 }
                                                             ]
-                                                        },
+                                                        }
+                                                    ]
+                                                },
+                                                {
+                                                    type: 'tableCell',
+                                                    attrs: {},
+                                                    content: [
                                                         {
-                                                            type: 'text',
-                                                            text: ' '
-                                                        },
-                                                        {
-                                                            type: 'text',
-                                                            text: '(tag on final commit) *',
-                                                            marks: [
+                                                            type: 'paragraph',
+                                                            content: [
                                                                 {
-                                                                    type: 'em'
+                                                                    type: 'text',
+                                                                    text: version
                                                                 }
                                                             ]
                                                         }
@@ -10563,110 +10587,57 @@ const updateMasterTicket = (jiraContext, version, releaseVersion, revision) => _
                                             ]
                                         },
                                         {
-                                            type: 'tableCell',
-                                            attrs: {},
+                                            type: 'tableRow',
                                             content: [
                                                 {
-                                                    type: 'paragraph',
+                                                    type: 'tableCell',
+                                                    attrs: {},
                                                     content: [
                                                         {
-                                                            type: 'text',
-                                                            text: version
-                                                        }
-                                                    ]
-                                                }
-                                            ]
-                                        }
-                                    ]
-                                },
-                                {
-                                    type: 'tableRow',
-                                    content: [
-                                        {
-                                            type: 'tableCell',
-                                            attrs: {},
-                                            content: [
-                                                {
-                                                    type: 'paragraph',
-                                                    content: [
-                                                        {
-                                                            type: 'text',
-                                                            text: 'Branch',
-                                                            marks: [
+                                                            type: 'paragraph',
+                                                            content: [
                                                                 {
-                                                                    type: 'strong'
-                                                                }
-                                                            ]
-                                                        },
-                                                        {
-                                                            type: 'text',
-                                                            text: ' '
-                                                        },
-                                                        {
-                                                            type: 'text',
-                                                            text: '(From GitHub for current release) *',
-                                                            marks: [
+                                                                    type: 'text',
+                                                                    text: 'Branch',
+                                                                    marks: [
+                                                                        {
+                                                                            type: 'strong'
+                                                                        }
+                                                                    ]
+                                                                },
                                                                 {
-                                                                    type: 'em'
+                                                                    type: 'text',
+                                                                    text: ' '
+                                                                },
+                                                                {
+                                                                    type: 'text',
+                                                                    text: '(From GitHub for current release) *',
+                                                                    marks: [
+                                                                        {
+                                                                            type: 'em'
+                                                                        }
+                                                                    ]
                                                                 }
                                                             ]
                                                         }
                                                     ]
-                                                }
-                                            ]
-                                        },
-                                        {
-                                            type: 'tableCell',
-                                            attrs: {},
-                                            content: [
+                                                },
                                                 {
-                                                    type: 'paragraph',
+                                                    type: 'tableCell',
+                                                    attrs: {},
                                                     content: [
                                                         {
-                                                            type: 'inlineCard',
-                                                            attrs: {
-                                                                url: `https://github.com/coupa/treasury_tm5/tree/release/${releaseVersion}`
-                                                            }
-                                                        },
-                                                        {
-                                                            type: 'text',
-                                                            text: ' '
-                                                        }
-                                                    ]
-                                                }
-                                            ]
-                                        }
-                                    ]
-                                },
-                                {
-                                    type: 'tableRow',
-                                    content: [
-                                        {
-                                            type: 'tableCell',
-                                            attrs: {},
-                                            content: [
-                                                {
-                                                    type: 'paragraph',
-                                                    content: [
-                                                        {
-                                                            type: 'text',
-                                                            text: 'Commit',
-                                                            marks: [
+                                                            type: 'paragraph',
+                                                            content: [
                                                                 {
-                                                                    type: 'strong'
-                                                                }
-                                                            ]
-                                                        },
-                                                        {
-                                                            type: 'text',
-                                                            text: ' '
-                                                        },
-                                                        {
-                                                            type: 'text',
-                                                            text: '(required in the “Revision” field) *',
-                                                            marks: [
+                                                                    type: 'inlineCard',
+                                                                    attrs: {
+                                                                        url: `https://github.com/coupa/treasury_tm5/tree/release/${releaseVersion}`
+                                                                    }
+                                                                },
                                                                 {
-                                                                    type: 'em'
+                                                                    type: 'text',
+                                                                    text: ' '
                                                                 }
                                                             ]
                                                         }
@@ -10675,15 +10646,53 @@ const updateMasterTicket = (jiraContext, version, releaseVersion, revision) => _
                                             ]
                                         },
                                         {
-                                            type: 'tableCell',
-                                            attrs: {},
+                                            type: 'tableRow',
                                             content: [
                                                 {
-                                                    type: 'paragraph',
+                                                    type: 'tableCell',
+                                                    attrs: {},
                                                     content: [
                                                         {
-                                                            type: 'text',
-                                                            text: revision
+                                                            type: 'paragraph',
+                                                            content: [
+                                                                {
+                                                                    type: 'text',
+                                                                    text: 'Commit',
+                                                                    marks: [
+                                                                        {
+                                                                            type: 'strong'
+                                                                        }
+                                                                    ]
+                                                                },
+                                                                {
+                                                                    type: 'text',
+                                                                    text: ' '
+                                                                },
+                                                                {
+                                                                    type: 'text',
+                                                                    text: '(required in the “Revision” field) *',
+                                                                    marks: [
+                                                                        {
+                                                                            type: 'em'
+                                                                        }
+                                                                    ]
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                {
+                                                    type: 'tableCell',
+                                                    attrs: {},
+                                                    content: [
+                                                        {
+                                                            type: 'paragraph',
+                                                            content: [
+                                                                {
+                                                                    type: 'text',
+                                                                    text: revision
+                                                                }
+                                                            ]
                                                         }
                                                     ]
                                                 }
@@ -10693,9 +10702,10 @@ const updateMasterTicket = (jiraContext, version, releaseVersion, revision) => _
                                 }
                             ]
                         }
-                    ]
-                }
-            }
+                    }
+                ]
+            },
+            fields: {}
         });
     }
 });
