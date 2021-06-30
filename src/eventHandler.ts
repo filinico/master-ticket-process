@@ -110,14 +110,15 @@ export const onReleasePublished = async (
   const {context, workspace} = actionContext
   const {
     payload: {
-      release: {tag_name, target_commitish, prerelease, id},
-      sha
-    }
+      release: {tag_name, target_commitish, prerelease, id}
+    },
+    sha
   } = context
   core.info(`tag_name:${tag_name}`)
   core.info(`target_commitish:${target_commitish}`)
   core.info(`prerelease:${prerelease}`)
   core.info(`id:${id}`)
+  core.info(`revision:${sha}`)
   const releaseVersion = getVersionFromBranch(target_commitish, 'release')
   core.info(`Release version:${releaseVersion}`)
   await updateDeliveredIssues(
@@ -130,7 +131,6 @@ export const onReleasePublished = async (
     actionContext
   )
 
-  core.info(`revision:${sha}`)
   await updateMasterTicket(jiraContext, tag_name, releaseVersion, sha)
 
   await createNextVersion(

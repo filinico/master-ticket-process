@@ -10263,15 +10263,15 @@ const updateDeliveredIssues = (releaseVersion, workspace, jiraContext, version, 
 });
 const onReleasePublished = (actionContext, jiraContext) => __awaiter(void 0, void 0, void 0, function* () {
     const { context, workspace } = actionContext;
-    const { payload: { release: { tag_name, target_commitish, prerelease, id }, sha } } = context;
+    const { payload: { release: { tag_name, target_commitish, prerelease, id } }, sha } = context;
     core.info(`tag_name:${tag_name}`);
     core.info(`target_commitish:${target_commitish}`);
     core.info(`prerelease:${prerelease}`);
     core.info(`id:${id}`);
+    core.info(`revision:${sha}`);
     const releaseVersion = semantic_version_1.getVersionFromBranch(target_commitish, 'release');
     core.info(`Release version:${releaseVersion}`);
     yield updateDeliveredIssues(releaseVersion, workspace, jiraContext, tag_name, prerelease, id, actionContext);
-    core.info(`revision:${sha}`);
     yield jiraUpdate_1.updateMasterTicket(jiraContext, tag_name, releaseVersion, sha);
     yield createNextVersion(tag_name, target_commitish, actionContext, jiraContext);
 });
