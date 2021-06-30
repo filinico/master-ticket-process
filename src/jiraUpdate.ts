@@ -3,6 +3,7 @@ import {
   createIssueLink,
   CreateIssueLink,
   createVersion,
+  generateReleaseNoteFromIssues,
   JiraContext,
   JiraIssue,
   JiraVersion,
@@ -83,6 +84,16 @@ const filterIssuesWithoutCurrentFixVersion = async (
   return await searchIssues(context, searchIssuesWithoutCurrentFixVersion, [
     'issuelinks'
   ])
+}
+
+const listIssuesSummaryWithFixVersion = async (
+  context: JiraContext,
+  fixVersion: string
+): Promise<SearchedJiraIssue[]> => {
+  const {projectKey} = context
+  const issuesWithFixVersion = `project = ${projectKey} AND fixVersion in (${fixVersion})`
+  core.info(`searchIssuesQuery:[${issuesWithFixVersion}]`)
+  return await searchIssues(context, issuesWithFixVersion, ['summary'])
 }
 
 export const getMasterTicketKey = async (
@@ -405,4 +416,12 @@ export const createMasterTicket = async (
       }
     })
   }
+}
+
+export const generateReleaseNote = async (
+  fixVersion: string,
+  jiraContext: JiraContext
+): Promise<string> => {
+  const issues = await listIssuesSummaryWithFixVersion(jiraContext, fixVersion)
+  return generateReleaseNoteFromIssues(issues)
 }

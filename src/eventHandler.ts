@@ -2,7 +2,8 @@ import {
   createRelease,
   getLastTagName,
   getReleaseByTagName,
-  GitHubContext
+  GitHubContext,
+  updateRelease
 } from './api/gitHubApi'
 import {
   generateNextMinorVersion,
@@ -12,6 +13,7 @@ import {
 import {
   createIfNotExistsJiraVersion,
   createMasterTicket,
+  generateReleaseNote,
   updateJira,
   updateMasterTicket
 } from './jiraUpdate'
@@ -37,6 +39,7 @@ export const onReleasePush = async (
   core.info(`lastTagName:${lastTagName}`)
   let fixVersion: string | null = null
   let prerelease = false
+  let releaseId
   if (!lastTagName) {
     const gitHubMajorVersion = await getReleaseByTagName(
       actionContext,
@@ -45,6 +48,7 @@ export const onReleasePush = async (
     if (gitHubMajorVersion) {
       fixVersion = gitHubMajorVersion.tagName
       prerelease = gitHubMajorVersion.isPrerelease
+      releaseId = gitHubMajorVersion.databaseId
     }
   } else if (lastTagName) {
     const nextPatchVersion = generateNextPatchVersion(lastTagName)
@@ -59,6 +63,7 @@ export const onReleasePush = async (
     if (gitHubRelease) {
       fixVersion = gitHubRelease.tagName
       prerelease = gitHubRelease.isPrerelease
+      releaseId = gitHubRelease.databaseId
     }
   }
   core.info(`fixVersion:${fixVersion}`)
@@ -68,7 +73,9 @@ export const onReleasePush = async (
       workspace,
       jiraContext,
       fixVersion,
-      prerelease
+      prerelease,
+      releaseId,
+      actionContext
     )
   }
 }
@@ -78,10 +85,16 @@ const updateDeliveredIssues = async (
   workspace: string,
   jiraContext: JiraContext,
   version: string,
-  prerelease: boolean
+  prerelease: boolean,
+  releaseId: number | undefined,
+  actionContext: GitHubContext
 ): Promise<void> => {
   const issueKeys = await extractJiraIssues(releaseVersion, workspace)
   await updateJira(jiraContext, issueKeys, version, prerelease)
+  if (!prerelease && releaseId) {
+    const releaseNote = await generateReleaseNote(version, jiraContext)
+    await updateRelease(actionContext, releaseId, releaseNote)
+  }
 }
 
 export const onReleasePublished = async (
@@ -91,7 +104,7 @@ export const onReleasePublished = async (
   const {context, workspace} = actionContext
   const {
     payload: {
-      release: {tag_name, target_commitish, prerelease}
+      release: {tag_name, target_commitish, prerelease, id}
     }
   } = context
   const releaseVersion = getVersionFromBranch(target_commitish, 'release')
@@ -100,7 +113,9 @@ export const onReleasePublished = async (
     workspace,
     jiraContext,
     tag_name,
-    prerelease
+    prerelease,
+    id,
+    actionContext
   )
 
   const gitHubRelease = await getReleaseByTagName(actionContext, tag_name)

@@ -63,6 +63,7 @@ interface GetReleaseResponse {
 }
 
 export interface GitHubRelease {
+  databaseId?: number
   name: string
   tagName: string
   publishedAt: string
@@ -76,6 +77,7 @@ const getReleaseByTagNameQuery = `
 query getReleaseByTagName($owner: String!, $repo: String!, $tagName: String!) {
   repository(owner:$owner, name: $repo) {
     release(tagName: $tagName) {
+      databaseId
       name
       tagName
       publishedAt
@@ -118,5 +120,19 @@ export const createRelease = async (
     name: tagName,
     prerelease: false,
     draft: true
+  })
+}
+
+export const updateRelease = async (
+  actionContext: GitHubContext,
+  releaseId: number,
+  releaseNote: string
+): Promise<void> => {
+  const {octokit, context} = actionContext
+  await octokit.repos.updateRelease({
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+    release_id: releaseId,
+    body: releaseNote
   })
 }

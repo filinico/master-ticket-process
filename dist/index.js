@@ -9925,7 +9925,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.createRelease = exports.getReleaseByTagName = exports.getLastTagName = void 0;
+exports.updateRelease = exports.createRelease = exports.getReleaseByTagName = exports.getLastTagName = void 0;
 const getLastTagNameQuery = `
 query lastTagQuery($owner: String!, $repo: String!, $releaseVersion: String!) {
   repository(owner:$owner, name: $repo) {
@@ -9957,6 +9957,7 @@ const getReleaseByTagNameQuery = `
 query getReleaseByTagName($owner: String!, $repo: String!, $tagName: String!) {
   repository(owner:$owner, name: $repo) {
     release(tagName: $tagName) {
+      databaseId
       name
       tagName
       publishedAt
@@ -9992,6 +9993,16 @@ const createRelease = (actionContext, tagName, targetBranch) => __awaiter(void 0
     });
 });
 exports.createRelease = createRelease;
+const updateRelease = (actionContext, releaseId, releaseNote) => __awaiter(void 0, void 0, void 0, function* () {
+    const { octokit, context } = actionContext;
+    yield octokit.repos.updateRelease({
+        owner: context.repo.owner,
+        repo: context.repo.repo,
+        release_id: releaseId,
+        body: releaseNote
+    });
+});
+exports.updateRelease = updateRelease;
 
 
 /***/ }),
@@ -10033,7 +10044,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.createIssueLink = exports.createIssue = exports.updateIssue = exports.listProjectVersions = exports.createVersion = exports.searchIssues = void 0;
+exports.generateReleaseNoteFromIssues = exports.createIssueLink = exports.createIssue = exports.updateIssue = exports.listProjectVersions = exports.createVersion = exports.searchIssues = void 0;
 const axios_1 = __importDefault(__nccwpck_require__(6545));
 const core = __importStar(__nccwpck_require__(2186));
 const getAuthHeaders = (email, token) => {
@@ -10155,6 +10166,10 @@ const createIssueLink = (context, data) => __awaiter(void 0, void 0, void 0, fun
     }
 });
 exports.createIssueLink = createIssueLink;
+const generateReleaseNoteFromIssues = (issues) => {
+    return issues.map(i => `- ${i.key} ${i.fields.summary}`).join('\n');
+};
+exports.generateReleaseNoteFromIssues = generateReleaseNoteFromIssues;
 
 
 /***/ }),
@@ -10208,11 +10223,13 @@ const onReleasePush = (actionContext, jiraContext, tagPrefix) => __awaiter(void 
     core.info(`lastTagName:${lastTagName}`);
     let fixVersion = null;
     let prerelease = false;
+    let releaseId;
     if (!lastTagName) {
         const gitHubMajorVersion = yield gitHubApi_1.getReleaseByTagName(actionContext, `${tagPrefix}${releaseVersion}.0`);
         if (gitHubMajorVersion) {
             fixVersion = gitHubMajorVersion.tagName;
             prerelease = gitHubMajorVersion.isPrerelease;
+            releaseId = gitHubMajorVersion.databaseId;
         }
     }
     else if (lastTagName) {
@@ -10225,23 +10242,28 @@ const onReleasePush = (actionContext, jiraContext, tagPrefix) => __awaiter(void 
         if (gitHubRelease) {
             fixVersion = gitHubRelease.tagName;
             prerelease = gitHubRelease.isPrerelease;
+            releaseId = gitHubRelease.databaseId;
         }
     }
     core.info(`fixVersion:${fixVersion}`);
     if (fixVersion) {
-        yield updateDeliveredIssues(releaseVersion, workspace, jiraContext, fixVersion, prerelease);
+        yield updateDeliveredIssues(releaseVersion, workspace, jiraContext, fixVersion, prerelease, releaseId, actionContext);
     }
 });
 exports.onReleasePush = onReleasePush;
-const updateDeliveredIssues = (releaseVersion, workspace, jiraContext, version, prerelease) => __awaiter(void 0, void 0, void 0, function* () {
+const updateDeliveredIssues = (releaseVersion, workspace, jiraContext, version, prerelease, releaseId, actionContext) => __awaiter(void 0, void 0, void 0, function* () {
     const issueKeys = yield gitRepo_1.extractJiraIssues(releaseVersion, workspace);
     yield jiraUpdate_1.updateJira(jiraContext, issueKeys, version, prerelease);
+    if (!prerelease && releaseId) {
+        const releaseNote = yield jiraUpdate_1.generateReleaseNote(version, jiraContext);
+        yield gitHubApi_1.updateRelease(actionContext, releaseId, releaseNote);
+    }
 });
 const onReleasePublished = (actionContext, jiraContext) => __awaiter(void 0, void 0, void 0, function* () {
     const { context, workspace } = actionContext;
-    const { payload: { release: { tag_name, target_commitish, prerelease } } } = context;
+    const { payload: { release: { tag_name, target_commitish, prerelease, id } } } = context;
     const releaseVersion = semantic_version_1.getVersionFromBranch(target_commitish, 'release');
-    yield updateDeliveredIssues(releaseVersion, workspace, jiraContext, tag_name, prerelease);
+    yield updateDeliveredIssues(releaseVersion, workspace, jiraContext, tag_name, prerelease, id, actionContext);
     const gitHubRelease = yield gitHubApi_1.getReleaseByTagName(actionContext, tag_name);
     const revision = gitHubRelease && gitHubRelease.tagCommit ? gitHubRelease.tagCommit.oid : '';
     yield jiraUpdate_1.updateMasterTicket(jiraContext, tag_name, releaseVersion, revision);
@@ -10364,7 +10386,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.createMasterTicket = exports.updateMasterTicket = exports.createIfNotExistsJiraVersion = exports.getMasterTicketKey = exports.updateJira = void 0;
+exports.generateReleaseNote = exports.createMasterTicket = exports.updateMasterTicket = exports.createIfNotExistsJiraVersion = exports.getMasterTicketKey = exports.updateJira = void 0;
 const jiraApi_1 = __nccwpck_require__(8286);
 const core = __importStar(__nccwpck_require__(2186));
 const updateJira = (context, issueKeys, fixVersion, prerelease) => __awaiter(void 0, void 0, void 0, function* () {
@@ -10413,6 +10435,12 @@ const filterIssuesWithoutCurrentFixVersion = (context, issueKeys, fixVersion) =>
     return yield jiraApi_1.searchIssues(context, searchIssuesWithoutCurrentFixVersion, [
         'issuelinks'
     ]);
+});
+const listIssuesSummaryWithFixVersion = (context, fixVersion) => __awaiter(void 0, void 0, void 0, function* () {
+    const { projectKey } = context;
+    const issuesWithFixVersion = `project = ${projectKey} AND fixVersion in (${fixVersion})`;
+    core.info(`searchIssuesQuery:[${issuesWithFixVersion}]`);
+    return yield jiraApi_1.searchIssues(context, issuesWithFixVersion, ['summary']);
 });
 const getMasterTicketKey = (context, fixVersion) => __awaiter(void 0, void 0, void 0, function* () {
     const { masterProjectKey } = context;
@@ -10713,6 +10741,11 @@ const createMasterTicket = (version, masterIssueType, masterProjectId, masterTic
     }
 });
 exports.createMasterTicket = createMasterTicket;
+const generateReleaseNote = (fixVersion, jiraContext) => __awaiter(void 0, void 0, void 0, function* () {
+    const issues = yield listIssuesSummaryWithFixVersion(jiraContext, fixVersion);
+    return jiraApi_1.generateReleaseNoteFromIssues(issues);
+});
+exports.generateReleaseNote = generateReleaseNote;
 
 
 /***/ }),

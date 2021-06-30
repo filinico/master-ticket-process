@@ -28,9 +28,9 @@ export interface JiraIssues {
 }
 
 export interface SearchedJiraIssue {
-  expand: string
-  id: string
-  self: string
+  expand?: string
+  id?: string
+  self?: string
   key: string
   fields: {
     summary?: string
@@ -307,4 +307,10 @@ export const createIssueLink = async (
     }
     return Promise.reject(error)
   }
+}
+
+export const generateReleaseNoteFromIssues = (
+  issues: SearchedJiraIssue[]
+): string => {
+  return issues.map(i => `- ${i.key} ${i.fields.summary}`).join('\n')
 }
