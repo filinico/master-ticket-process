@@ -10078,6 +10078,7 @@ const searchIssues = (context, jQLQuery, properties) => __awaiter(void 0, void 0
         core.error('error during searchIssues request');
         if (axios_1.default.isAxiosError(error)) {
             core.error(error.message);
+            core.error(JSON.stringify(error.toJSON));
         }
         return Promise.reject(error);
     }
@@ -10095,6 +10096,7 @@ const createVersion = (context, version) => __awaiter(void 0, void 0, void 0, fu
         core.error('error during createVersion request');
         if (axios_1.default.isAxiosError(error)) {
             core.error(error.message);
+            core.error(JSON.stringify(error.toJSON));
         }
         return Promise.reject(error);
     }
@@ -10112,6 +10114,7 @@ const listProjectVersions = (context, projectKey) => __awaiter(void 0, void 0, v
         core.error('error during listProjectVersions request');
         if (axios_1.default.isAxiosError(error)) {
             core.error(error.message);
+            core.error(JSON.stringify(error.toJSON));
         }
         return Promise.reject(error);
     }
@@ -10128,6 +10131,7 @@ const updateIssue = (context, issueKey, data) => __awaiter(void 0, void 0, void 
         core.error('error during updateIssue request');
         if (axios_1.default.isAxiosError(error)) {
             core.error(error.message);
+            core.error(JSON.stringify(error.toJSON));
         }
         return Promise.reject(error);
     }
@@ -10146,6 +10150,7 @@ const createIssue = (context, data) => __awaiter(void 0, void 0, void 0, functio
         core.error('error during createIssue request');
         if (axios_1.default.isAxiosError(error)) {
             core.error(error.message);
+            core.error(JSON.stringify(error.toJSON));
         }
         return Promise.reject(error);
     }
@@ -10162,6 +10167,7 @@ const createIssueLink = (context, data) => __awaiter(void 0, void 0, void 0, fun
         core.error('error during createIssueLink request');
         if (axios_1.default.isAxiosError(error)) {
             core.error(error.message);
+            core.error(JSON.stringify(error.toJSON));
         }
         return Promise.reject(error);
     }

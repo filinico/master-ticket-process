@@ -215,6 +215,7 @@ export const searchIssues = async (
     core.error('error during searchIssues request')
     if (axios.isAxiosError(error)) {
       core.error(error.message)
+      core.error(JSON.stringify(error.toJSON))
     }
     return Promise.reject(error)
   }
@@ -238,6 +239,7 @@ export const createVersion = async (
     core.error('error during createVersion request')
     if (axios.isAxiosError(error)) {
       core.error(error.message)
+      core.error(JSON.stringify(error.toJSON))
     }
     return Promise.reject(error)
   }
@@ -260,6 +262,7 @@ export const listProjectVersions = async (
     core.error('error during listProjectVersions request')
     if (axios.isAxiosError(error)) {
       core.error(error.message)
+      core.error(JSON.stringify(error.toJSON))
     }
     return Promise.reject(error)
   }
@@ -283,6 +286,7 @@ export const updateIssue = async (
     core.error('error during updateIssue request')
     if (axios.isAxiosError(error)) {
       core.error(error.message)
+      core.error(JSON.stringify(error.toJSON))
     }
     return Promise.reject(error)
   }
@@ -307,6 +311,7 @@ export const createIssue = async (
     core.error('error during createIssue request')
     if (axios.isAxiosError(error)) {
       core.error(error.message)
+      core.error(JSON.stringify(error.toJSON))
     }
     return Promise.reject(error)
   }
@@ -329,6 +334,7 @@ export const createIssueLink = async (
     core.error('error during createIssueLink request')
     if (axios.isAxiosError(error)) {
       core.error(error.message)
+      core.error(JSON.stringify(error.toJSON))
     }
     return Promise.reject(error)
   }
