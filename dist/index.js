@@ -9962,6 +9962,7 @@ query getReleaseByTagName($owner: String!, $repo: String!, $tagName: String!) {
       tagName
       publishedAt
       isPrerelease
+      isDraft
     }
   }
 }
@@ -9990,7 +9991,7 @@ const createRelease = (actionContext, tagName, targetBranch) => __awaiter(void 0
     });
 });
 exports.createRelease = createRelease;
-const updateRelease = (actionContext, releaseId, releaseNote, tagName, targetBranch) => __awaiter(void 0, void 0, void 0, function* () {
+const updateRelease = (actionContext, releaseId, releaseNote, tagName, targetBranch, draft, prerelease) => __awaiter(void 0, void 0, void 0, function* () {
     const { octokit, context } = actionContext;
     yield octokit.repos.updateRelease({
         owner: context.repo.owner,
@@ -9999,7 +10000,9 @@ const updateRelease = (actionContext, releaseId, releaseNote, tagName, targetBra
         body: releaseNote,
         tag_name: tagName,
         target_commitish: targetBranch,
-        name: tagName
+        name: tagName,
+        draft,
+        prerelease
     });
 });
 exports.updateRelease = updateRelease;
@@ -10230,12 +10233,14 @@ const onReleasePush = (actionContext, jiraContext, tagPrefix) => __awaiter(void 
     core.info(`lastTagName:${lastTagName}`);
     let fixVersion = null;
     let prerelease = false;
+    let draft = true;
     let releaseId;
     if (!lastTagName) {
         const gitHubMajorVersion = yield gitHubApi_1.getReleaseByTagName(actionContext, `${tagPrefix}${releaseVersion}.0`);
         if (gitHubMajorVersion) {
             fixVersion = gitHubMajorVersion.tagName;
             prerelease = gitHubMajorVersion.isPrerelease;
+            draft = gitHubMajorVersion.isDraft;
             releaseId = gitHubMajorVersion.databaseId;
         }
     }
@@ -10249,26 +10254,27 @@ const onReleasePush = (actionContext, jiraContext, tagPrefix) => __awaiter(void 
         if (gitHubRelease) {
             fixVersion = gitHubRelease.tagName;
             prerelease = gitHubRelease.isPrerelease;
+            draft = gitHubRelease.isDraft;
             releaseId = gitHubRelease.databaseId;
         }
     }
     core.info(`fixVersion:${fixVersion}`);
     if (fixVersion) {
-        yield updateDeliveredIssues(releaseVersion, workspace, jiraContext, fixVersion, prerelease, releaseId, actionContext);
+        yield updateDeliveredIssues(releaseVersion, workspace, jiraContext, fixVersion, prerelease, draft, releaseId, actionContext);
     }
 });
 exports.onReleasePush = onReleasePush;
-const updateDeliveredIssues = (releaseVersion, workspace, jiraContext, version, prerelease, releaseId, actionContext) => __awaiter(void 0, void 0, void 0, function* () {
+const updateDeliveredIssues = (releaseVersion, workspace, jiraContext, version, prerelease, draft, releaseId, actionContext) => __awaiter(void 0, void 0, void 0, function* () {
     const issueKeys = yield gitRepo_1.extractJiraIssues(releaseVersion, workspace);
     yield jiraUpdate_1.updateJira(jiraContext, issueKeys, version, prerelease);
     if (!prerelease && releaseId) {
         const releaseNote = yield jiraUpdate_1.generateReleaseNote(version, jiraContext);
-        yield gitHubApi_1.updateRelease(actionContext, releaseId, releaseNote, version, `release/${releaseVersion}`);
+        yield gitHubApi_1.updateRelease(actionContext, releaseId, releaseNote, version, `release/${releaseVersion}`, draft, prerelease);
     }
 });
 const onReleasePublished = (actionContext, jiraContext) => __awaiter(void 0, void 0, void 0, function* () {
     const { context, workspace } = actionContext;
-    const { payload: { release: { tag_name, target_commitish, prerelease, id } }, sha } = context;
+    const { payload: { release: { tag_name, target_commitish, prerelease, id, draft } }, sha } = context;
     core.info(`tag_name:${tag_name}`);
     core.info(`target_commitish:${target_commitish}`);
     core.info(`prerelease:${prerelease}`);
@@ -10276,7 +10282,7 @@ const onReleasePublished = (actionContext, jiraContext) => __awaiter(void 0, voi
     core.info(`revision:${sha}`);
     const releaseVersion = semantic_version_1.getVersionFromBranch(target_commitish, 'release');
     core.info(`Release version:${releaseVersion}`);
-    yield updateDeliveredIssues(releaseVersion, workspace, jiraContext, tag_name, prerelease, id, actionContext);
+    yield updateDeliveredIssues(releaseVersion, workspace, jiraContext, tag_name, prerelease, draft, id, actionContext);
     yield jiraUpdate_1.updateMasterTicket(jiraContext, tag_name, releaseVersion, sha);
     yield createNextVersion(tag_name, target_commitish, actionContext, jiraContext);
 });

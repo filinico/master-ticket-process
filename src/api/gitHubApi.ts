@@ -68,6 +68,7 @@ export interface GitHubRelease {
   tagName: string
   publishedAt: string
   isPrerelease: boolean
+  isDraft: boolean
 }
 
 const getReleaseByTagNameQuery = `
@@ -79,6 +80,7 @@ query getReleaseByTagName($owner: String!, $repo: String!, $tagName: String!) {
       tagName
       publishedAt
       isPrerelease
+      isDraft
     }
   }
 }
@@ -122,7 +124,9 @@ export const updateRelease = async (
   releaseId: number,
   releaseNote: string,
   tagName: string,
-  targetBranch: string
+  targetBranch: string,
+  draft: boolean,
+  prerelease: boolean
 ): Promise<void> => {
   const {octokit, context} = actionContext
   await octokit.repos.updateRelease({
@@ -132,6 +136,8 @@ export const updateRelease = async (
     body: releaseNote,
     tag_name: tagName,
     target_commitish: targetBranch,
-    name: tagName
+    name: tagName,
+    draft,
+    prerelease
   })
 }

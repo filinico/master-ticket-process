@@ -39,6 +39,7 @@ export const onReleasePush = async (
   core.info(`lastTagName:${lastTagName}`)
   let fixVersion: string | null = null
   let prerelease = false
+  let draft = true
   let releaseId
   if (!lastTagName) {
     const gitHubMajorVersion = await getReleaseByTagName(
@@ -48,6 +49,7 @@ export const onReleasePush = async (
     if (gitHubMajorVersion) {
       fixVersion = gitHubMajorVersion.tagName
       prerelease = gitHubMajorVersion.isPrerelease
+      draft = gitHubMajorVersion.isDraft
       releaseId = gitHubMajorVersion.databaseId
     }
   } else if (lastTagName) {
@@ -63,6 +65,7 @@ export const onReleasePush = async (
     if (gitHubRelease) {
       fixVersion = gitHubRelease.tagName
       prerelease = gitHubRelease.isPrerelease
+      draft = gitHubRelease.isDraft
       releaseId = gitHubRelease.databaseId
     }
   }
@@ -74,6 +77,7 @@ export const onReleasePush = async (
       jiraContext,
       fixVersion,
       prerelease,
+      draft,
       releaseId,
       actionContext
     )
@@ -86,6 +90,7 @@ const updateDeliveredIssues = async (
   jiraContext: JiraContext,
   version: string,
   prerelease: boolean,
+  draft: boolean,
   releaseId: number | undefined,
   actionContext: GitHubContext
 ): Promise<void> => {
@@ -98,7 +103,9 @@ const updateDeliveredIssues = async (
       releaseId,
       releaseNote,
       version,
-      `release/${releaseVersion}`
+      `release/${releaseVersion}`,
+      draft,
+      prerelease
     )
   }
 }
@@ -110,7 +117,7 @@ export const onReleasePublished = async (
   const {context, workspace} = actionContext
   const {
     payload: {
-      release: {tag_name, target_commitish, prerelease, id}
+      release: {tag_name, target_commitish, prerelease, id, draft}
     },
     sha
   } = context
@@ -127,6 +134,7 @@ export const onReleasePublished = async (
     jiraContext,
     tag_name,
     prerelease,
+    draft,
     id,
     actionContext
   )
