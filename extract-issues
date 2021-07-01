@@ -1,0 +1,17 @@
+#!/usr/bin/bash
+
+# use -t to configure token
+while getopts ":r:" arg; do
+  case $arg in
+    r) releaseVersion=$OPTARG;;
+    *) echo "Please provide the release version. usage: $0 [-r]" >&2
+       exit 1 ;;
+  esac
+done
+
+git fetch --prune --unshallow --tags
+tagVersion=$(echo -e "$releaseVersion" | sed 's/\.//g')
+previousTag=$(git tag --list --sort=-version:refname "5.$tagVersion*" | head -n 1)
+revision=$(git log -g "origin/release/$releaseVersion" -1 --format=%H)
+issueKeys=$(git log "$previousTag".."$revision" -i --grep="^TM-[0-9].*" --pretty="format:%s" | sort | grep -oP --regexp="^TM-[0-9]+" | uniq  | tr '\n' ',' | sed 's/,$//g')
+echo -e "$issueKeys"
