@@ -5,8 +5,8 @@ export interface JiraContext {
   subDomain: string
   email: string
   token: string
-  projectId: string
-  projectKey: string
+  projectsIds: string[]
+  projectsKeys: string[]
   masterProjectId: string
   masterProjectKey: string
   masterIssueType: string

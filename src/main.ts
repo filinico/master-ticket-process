@@ -29,8 +29,12 @@ async function run(): Promise<void> {
       subDomain: core.getInput('JIRA_SUBDOMAIN', {required: true}),
       email: core.getInput('JIRA_USER', {required: true}),
       token: core.getInput('JIRA_TOKEN', {required: true}),
-      projectId: core.getInput('JIRA_PROJECT_ID', {required: true}),
-      projectKey: core.getInput('JIRA_PROJECT_KEY', {required: true}),
+      projectsIds: core
+        .getInput('JIRA_PROJECTS_IDS', {required: true})
+        .split(','),
+      projectsKeys: core
+        .getInput('JIRA_PROJECTS_KEYS', {required: true})
+        .split(','),
       masterProjectId: core.getInput('JIRA_MASTER_PROJECT_ID', {
         required: true
       }),

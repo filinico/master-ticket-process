@@ -168,19 +168,23 @@ const createNextVersion = async (
     await createRelease(actionContext, nextPatchVersion, releaseBranch)
   }
   const {
-    projectId,
-    projectKey,
+    projectsIds,
+    projectsKeys,
     masterProjectId,
     masterProjectKey,
     masterIssueType
   } = jiraContext
 
-  await createIfNotExistsJiraVersion(
-    jiraContext,
-    nextPatchVersion,
-    parseInt(projectId),
-    projectKey
-  )
+  for (let i = 0; i < projectsKeys.length; i++) {
+    const projectId = projectsIds[i]
+    const projectKey = projectsKeys[i]
+    await createIfNotExistsJiraVersion(
+      jiraContext,
+      nextPatchVersion,
+      parseInt(projectId),
+      projectKey
+    )
+  }
 
   const masterTicketVersion = await createIfNotExistsJiraVersion(
     jiraContext,
