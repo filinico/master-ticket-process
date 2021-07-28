@@ -40,25 +40,39 @@ export const updateJira = async (
   core.info(`linkedIssueKeys:[${linkedIssueKeys.join(',')}]`)
   const currentIssueKeys = issues.map(issue => issue.key)
   core.info(`currentIssueKeys:[${currentIssueKeys.join(',')}]`)
-  const {projectId, projectKey} = context
-  const version = await createIfNotExistsJiraVersion(
-    context,
-    fixVersion,
-    parseInt(projectId),
-    projectKey
-  )
-  const fixVersionUpdate: JiraIssue = {
-    update: {
-      fixVersions: [
-        {
-          add: {id: version.id}
-        }
-      ]
+  const {projectsIds, projectsKeys} = context
+  const fixVersionUpdates: JiraIssue[] = []
+  for (let i = 0; i < projectsKeys.length; i++) {
+    const projectId = projectsIds[i]
+    const projectKey = projectsKeys[i]
+    const version = await createIfNotExistsJiraVersion(
+      context,
+      fixVersion,
+      parseInt(projectId),
+      projectKey
+    )
+    const fixVersionUpdate: JiraIssue = {
+      update: {
+        fixVersions: [
+          {
+            add: {id: version.id}
+          }
+        ]
+      }
     }
+    fixVersionUpdates.push(fixVersionUpdate)
   }
+
   for (const issueKey of currentIssueKeys) {
     core.info(`start updateIssue:[${issueKey}]`)
-    await updateIssue(context, issueKey, fixVersionUpdate)
+    let index = 0
+    for (let i = 0; i < projectsKeys.length; i++) {
+      if (issueKey.startsWith(projectsKeys[i])) {
+        index = i
+        break
+      }
+    }
+    await updateIssue(context, issueKey, fixVersionUpdates[index])
     if (
       !prerelease &&
       masterTicketIssueKey &&
@@ -77,9 +91,11 @@ const filterIssuesWithoutCurrentFixVersion = async (
   issueKeys: string[],
   fixVersion: string
 ): Promise<SearchedJiraIssue[]> => {
-  const {projectKey} = context
+  const {projectsKeys} = context
   const groupedIssues = issueKeys.join(',')
-  const searchIssuesWithoutCurrentFixVersion = `project = ${projectKey} AND fixVersion not in (${fixVersion}) AND issuekey in (${groupedIssues})`
+  const searchIssuesWithoutCurrentFixVersion = `project in (${projectsKeys.join(
+    ','
+  )}) AND fixVersion not in (${fixVersion}) AND issuekey in (${groupedIssues})`
   core.info(`searchIssuesQuery:[${searchIssuesWithoutCurrentFixVersion}]`)
   return await searchIssues(context, searchIssuesWithoutCurrentFixVersion, [
     'issuelinks'
@@ -90,8 +106,10 @@ const listIssuesSummaryWithFixVersion = async (
   context: JiraContext,
   fixVersion: string
 ): Promise<SearchedJiraIssue[]> => {
-  const {projectKey} = context
-  const issuesWithFixVersion = `project = ${projectKey} AND fixVersion in (${fixVersion})`
+  const {projectsKeys} = context
+  const issuesWithFixVersion = `project in (${projectsKeys.join(
+    ','
+  )}) AND fixVersion in (${fixVersion})`
   core.info(`searchIssuesQuery:[${issuesWithFixVersion}]`)
   return await searchIssues(context, issuesWithFixVersion, ['summary'])
 }

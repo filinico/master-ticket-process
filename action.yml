@@ -17,11 +17,11 @@ inputs:
   JIRA_TOKEN:
     description: "token for jira cloud"
     required: true
-  JIRA_PROJECT_ID:
-    description: "project id from jira cloud"
+  JIRA_PROJECTS_IDS:
+    description: "projects ids from jira cloud. list comma separated"
     required: true
-  JIRA_PROJECT_KEY:
-    description: "project key from jira cloud"
+  JIRA_PROJECTS_KEYS:
+    description: "projects keys from jira cloud. list comma separated"
     required: true
   JIRA_MASTER_PROJECT_ID:
     description: "master project id from jira cloud"
