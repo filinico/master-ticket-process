@@ -10295,8 +10295,12 @@ const createNextVersion = (currentVersion, releaseBranch, actionContext, jiraCon
         core.info(`request creation of new release :${nextPatchVersion} for ${releaseBranch}`);
         yield gitHubApi_1.createRelease(actionContext, nextPatchVersion, releaseBranch);
     }
-    const { projectId, projectKey, masterProjectId, masterProjectKey, masterIssueType } = jiraContext;
-    yield jiraUpdate_1.createIfNotExistsJiraVersion(jiraContext, nextPatchVersion, parseInt(projectId), projectKey);
+    const { projectsIds, projectsKeys, masterProjectId, masterProjectKey, masterIssueType } = jiraContext;
+    for (let i = 0; i < projectsKeys.length; i++) {
+        const projectId = projectsIds[i];
+        const projectKey = projectsKeys[i];
+        yield jiraUpdate_1.createIfNotExistsJiraVersion(jiraContext, nextPatchVersion, parseInt(projectId), projectKey);
+    }
     const masterTicketVersion = yield jiraUpdate_1.createIfNotExistsJiraVersion(jiraContext, nextPatchVersion, parseInt(masterProjectId), masterProjectKey);
     if (masterTicketVersion && masterTicketVersion.id) {
         core.info(`request creation of master ticket version ${nextPatchVersion} with id  ${masterTicketVersion.id}`);
@@ -10424,20 +10428,33 @@ const updateJira = (context, issueKeys, fixVersion, prerelease) => __awaiter(voi
     core.info(`linkedIssueKeys:[${linkedIssueKeys.join(',')}]`);
     const currentIssueKeys = issues.map(issue => issue.key);
     core.info(`currentIssueKeys:[${currentIssueKeys.join(',')}]`);
-    const { projectId, projectKey } = context;
-    const version = yield exports.createIfNotExistsJiraVersion(context, fixVersion, parseInt(projectId), projectKey);
-    const fixVersionUpdate = {
-        update: {
-            fixVersions: [
-                {
-                    add: { id: version.id }
-                }
-            ]
-        }
-    };
+    const { projectsIds, projectsKeys } = context;
+    const fixVersionUpdates = [];
+    for (let i = 0; i < projectsKeys.length; i++) {
+        const projectId = projectsIds[i];
+        const projectKey = projectsKeys[i];
+        const version = yield exports.createIfNotExistsJiraVersion(context, fixVersion, parseInt(projectId), projectKey);
+        const fixVersionUpdate = {
+            update: {
+                fixVersions: [
+                    {
+                        add: { id: version.id }
+                    }
+                ]
+            }
+        };
+        fixVersionUpdates.push(fixVersionUpdate);
+    }
     for (const issueKey of currentIssueKeys) {
         core.info(`start updateIssue:[${issueKey}]`);
-        yield jiraApi_1.updateIssue(context, issueKey, fixVersionUpdate);
+        let index = 0;
+        for (let i = 0; i < projectsKeys.length; i++) {
+            if (issueKey.startsWith(projectsKeys[i])) {
+                index = i;
+                break;
+            }
+        }
+        yield jiraApi_1.updateIssue(context, issueKey, fixVersionUpdates[index]);
         if (!prerelease &&
             masterTicketIssueKey &&
             !linkedIssueKeys.find(i => i === issueKey)) {
@@ -10448,17 +10465,17 @@ const updateJira = (context, issueKeys, fixVersion, prerelease) => __awaiter(voi
 });
 exports.updateJira = updateJira;
 const filterIssuesWithoutCurrentFixVersion = (context, issueKeys, fixVersion) => __awaiter(void 0, void 0, void 0, function* () {
-    const { projectKey } = context;
+    const { projectsKeys } = context;
     const groupedIssues = issueKeys.join(',');
-    const searchIssuesWithoutCurrentFixVersion = `project = ${projectKey} AND fixVersion not in (${fixVersion}) AND issuekey in (${groupedIssues})`;
+    const searchIssuesWithoutCurrentFixVersion = `project in (${projectsKeys.join(',')}) AND fixVersion not in (${fixVersion}) AND issuekey in (${groupedIssues})`;
     core.info(`searchIssuesQuery:[${searchIssuesWithoutCurrentFixVersion}]`);
     return yield jiraApi_1.searchIssues(context, searchIssuesWithoutCurrentFixVersion, [
         'issuelinks'
     ]);
 });
 const listIssuesSummaryWithFixVersion = (context, fixVersion) => __awaiter(void 0, void 0, void 0, function* () {
-    const { projectKey } = context;
-    const issuesWithFixVersion = `project = ${projectKey} AND fixVersion in (${fixVersion})`;
+    const { projectsKeys } = context;
+    const issuesWithFixVersion = `project in (${projectsKeys.join(',')}) AND fixVersion in (${fixVersion})`;
     core.info(`searchIssuesQuery:[${issuesWithFixVersion}]`);
     return yield jiraApi_1.searchIssues(context, issuesWithFixVersion, ['summary']);
 });
@@ -10840,8 +10857,12 @@ function run() {
                 subDomain: core.getInput('JIRA_SUBDOMAIN', { required: true }),
                 email: core.getInput('JIRA_USER', { required: true }),
                 token: core.getInput('JIRA_TOKEN', { required: true }),
-                projectId: core.getInput('JIRA_PROJECT_ID', { required: true }),
-                projectKey: core.getInput('JIRA_PROJECT_KEY', { required: true }),
+                projectsIds: core
+                    .getInput('JIRA_PROJECTS_IDS', { required: true })
+                    .split(','),
+                projectsKeys: core
+                    .getInput('JIRA_PROJECTS_KEYS', { required: true })
+                    .split(','),
                 masterProjectId: core.getInput('JIRA_MASTER_PROJECT_ID', {
                     required: true
                 }),
