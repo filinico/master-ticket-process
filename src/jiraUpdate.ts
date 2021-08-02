@@ -34,7 +34,9 @@ export const updateJira = async (
   }
   const masterTicketIssueKey = await getMasterTicketKey(context, fixVersion)
   const linkedIssues = issues.filter(i =>
-    i.fields?.issuelinks?.find(j => j.inwardIssue.key === masterTicketIssueKey)
+    i.fields?.issuelinks?.find(
+      j => j.outwardIssue?.key === masterTicketIssueKey
+    )
   )
   const linkedIssueKeys = linkedIssues.map(issue => issue.key)
   core.info(`linkedIssueKeys:[${linkedIssueKeys.join(',')}]`)

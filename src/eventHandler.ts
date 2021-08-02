@@ -94,7 +94,12 @@ const updateDeliveredIssues = async (
   releaseId: number | undefined,
   actionContext: GitHubContext
 ): Promise<void> => {
-  const issueKeys = await extractJiraIssues(releaseVersion, workspace)
+  const {projectsKeys} = jiraContext
+  const issueKeys = await extractJiraIssues(
+    releaseVersion,
+    projectsKeys.join(','),
+    workspace
+  )
   await updateJira(jiraContext, issueKeys, version, prerelease)
   if (!prerelease && releaseId) {
     const releaseNote = await generateReleaseNote(version, jiraContext)

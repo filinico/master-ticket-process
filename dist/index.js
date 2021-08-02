@@ -10265,7 +10265,8 @@ const onReleasePush = (actionContext, jiraContext, tagPrefix) => __awaiter(void 
 });
 exports.onReleasePush = onReleasePush;
 const updateDeliveredIssues = (releaseVersion, workspace, jiraContext, version, prerelease, draft, releaseId, actionContext) => __awaiter(void 0, void 0, void 0, function* () {
-    const issueKeys = yield gitRepo_1.extractJiraIssues(releaseVersion, workspace);
+    const { projectsKeys } = jiraContext;
+    const issueKeys = yield gitRepo_1.extractJiraIssues(releaseVersion, projectsKeys.join(','), workspace);
     yield jiraUpdate_1.updateJira(jiraContext, issueKeys, version, prerelease);
     if (!prerelease && releaseId) {
         const releaseNote = yield jiraUpdate_1.generateReleaseNote(version, jiraContext);
@@ -10348,10 +10349,10 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.convertScriptResults = exports.extractJiraIssues = void 0;
 const promisify_child_process_1 = __nccwpck_require__(2809);
 const core = __importStar(__nccwpck_require__(2186));
-const extractJiraIssues = (releaseVersion, githubWorkspace) => __awaiter(void 0, void 0, void 0, function* () {
+const extractJiraIssues = (releaseVersion, projectsKeys, githubWorkspace) => __awaiter(void 0, void 0, void 0, function* () {
     yield promisify_child_process_1.exec(`chmod +x ${__dirname}/../extract-issues`);
     yield promisify_child_process_1.exec(`cd ${githubWorkspace}`);
-    const { stdout, stderr } = yield promisify_child_process_1.exec(`${__dirname}/../extract-issues -r ${releaseVersion}`);
+    const { stdout, stderr } = yield promisify_child_process_1.exec(`${__dirname}/../extract-issues -r ${releaseVersion} -p ${projectsKeys}`);
     core.info(`issueKeysCommaSeparated:--${stdout}--`);
     if (stderr) {
         core.error(stderr.toString());
@@ -10423,7 +10424,7 @@ const updateJira = (context, issueKeys, fixVersion, prerelease) => __awaiter(voi
         return;
     }
     const masterTicketIssueKey = yield exports.getMasterTicketKey(context, fixVersion);
-    const linkedIssues = issues.filter(i => { var _a, _b; return (_b = (_a = i.fields) === null || _a === void 0 ? void 0 : _a.issuelinks) === null || _b === void 0 ? void 0 : _b.find(j => j.inwardIssue.key === masterTicketIssueKey); });
+    const linkedIssues = issues.filter(i => { var _a, _b; return (_b = (_a = i.fields) === null || _a === void 0 ? void 0 : _a.issuelinks) === null || _b === void 0 ? void 0 : _b.find(j => { var _a; return ((_a = j.outwardIssue) === null || _a === void 0 ? void 0 : _a.key) === masterTicketIssueKey; }); });
     const linkedIssueKeys = linkedIssues.map(issue => issue.key);
     core.info(`linkedIssueKeys:[${linkedIssueKeys.join(',')}]`);
     const currentIssueKeys = issues.map(issue => issue.key);

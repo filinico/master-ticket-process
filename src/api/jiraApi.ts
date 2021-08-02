@@ -40,7 +40,7 @@ export interface SearchedJiraIssue {
       type: {
         id: string
       }
-      inwardIssue: {
+      outwardIssue: {
         id: string
         key: string
       }
