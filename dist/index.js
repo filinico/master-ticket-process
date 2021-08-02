@@ -10424,7 +10424,7 @@ const updateJira = (context, issueKeys, fixVersion, prerelease) => __awaiter(voi
         return;
     }
     const masterTicketIssueKey = yield exports.getMasterTicketKey(context, fixVersion);
-    const linkedIssues = issues.filter(i => { var _a, _b; return (_b = (_a = i.fields) === null || _a === void 0 ? void 0 : _a.issuelinks) === null || _b === void 0 ? void 0 : _b.find(j => j.inwardIssue.key === masterTicketIssueKey); });
+    const linkedIssues = issues.filter(i => { var _a, _b; return (_b = (_a = i.fields) === null || _a === void 0 ? void 0 : _a.issuelinks) === null || _b === void 0 ? void 0 : _b.find(j => { var _a; return ((_a = j.outwardIssue) === null || _a === void 0 ? void 0 : _a.key) === masterTicketIssueKey; }); });
     const linkedIssueKeys = linkedIssues.map(issue => issue.key);
     core.info(`linkedIssueKeys:[${linkedIssueKeys.join(',')}]`);
     const currentIssueKeys = issues.map(issue => issue.key);
