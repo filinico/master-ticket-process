@@ -35,6 +35,9 @@ inputs:
   TAG_PREFIX:
     description: "prefix for the versioning"
     required: true
+  CONFIG_PATH:
+    description: "Path to the config yml file."
+    required: false
 runs:
   using: 'node12'
   main: 'dist/index.js'

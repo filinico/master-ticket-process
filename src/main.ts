@@ -1,11 +1,16 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
 import {onReleasePublished, onReleasePush} from './eventHandler'
+import {GitHubContext, loadConfig} from './api/gitHubApi'
 
 async function run(): Promise<void> {
   try {
     const githubToken = core.getInput('GITHUB_TOKEN', {required: true})
     const tagPrefix = core.getInput('TAG_PREFIX', {required: true})
+    let configPath = core.getInput('CONFIG_PATH', {})
+    if (!configPath) {
+      configPath = '.github/master-ticket-config.yml'
+    }
 
     if (!process.env.GITHUB_WORKSPACE) {
       core.setFailed(
@@ -20,7 +25,7 @@ async function run(): Promise<void> {
     core.info(`GITHUB context action=${github.context.payload.action}`)
 
     const octokit = github.getOctokit(githubToken)
-    const gitHubContext = {
+    const gitHubContext: GitHubContext = {
       octokit,
       context: github.context,
       workspace: process.env.GITHUB_WORKSPACE
@@ -53,6 +58,8 @@ async function run(): Promise<void> {
       github.context.payload.action === 'published'
     ) {
       core.info(`start onReleasePublished`)
+      const config = await loadConfig(gitHubContext, configPath)
+      gitHubContext.config = config
       await onReleasePublished(gitHubContext, jiraContext)
       core.info(`releasePublished finished`)
     }

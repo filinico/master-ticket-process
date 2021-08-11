@@ -1,4 +1,5 @@
 import {
+  archivePRCardsFromProject,
   createRelease,
   getLastTagName,
   getReleaseByTagName,
@@ -145,6 +146,8 @@ export const onReleasePublished = async (
   )
 
   await updateMasterTicket(jiraContext, tag_name, releaseVersion, sha)
+
+  await archivePRCardsFromProject(actionContext, target_commitish)
 
   await createNextVersion(
     tag_name,
