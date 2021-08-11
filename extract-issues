@@ -1,11 +1,12 @@
 #!/usr/bin/bash
 
 # use -t to configure token
-while getopts ":r:p:" arg; do
+while getopts ":t:r:p:" arg; do
   case $arg in
+    t) tagPrefix=$OPTARG;;
     r) releaseVersion=$OPTARG;;
     p) projectsCommaSeparated=$OPTARG;;
-    *) echo "Please provide the release version and projects. usage: $0 [-r -p]" >&2
+    *) echo "Please provide the release version, tagPrefix and projects. usage: $0 [-t -r -p]" >&2
        exit 1 ;;
   esac
 done
@@ -24,10 +25,13 @@ done
 separator="|"
 regex="$( printf "${separator}%s" "${projects[@]}" )"
 regex="${regex:${#separator}}"
-
 git fetch --prune --unshallow --tags
-tagVersion=$(echo -e "$releaseVersion" | sed 's/\.//g')
-previousTag=$(git tag --list --sort=-version:refname "5.$tagVersion*" | head -n 1)
+previousTag=$(git tag --list --sort=-version:refname "$tagPrefix$releaseVersion*" | head -n 1)
+if [ -z "$previousTag" ]
+then
+  tagVersion=$(echo -e "$releaseVersion" | sed 's/\.//g')
+  previousTag=$(git tag --list --sort=-version:refname "5.$tagVersion*" | head -n 1)
+fi
 revision=$(git log -g "origin/release/$releaseVersion" -1 --format=%H)
-issueKeys=$(git log "$previousTag".."$revision" -i --pretty="format:%s""$grepsArguments" | sort | grep -oP --regexp="($regex)-[0-9]{5,6}" | uniq  | tr '\n' ',' | sed 's/,$//g')
+issueKeys=$(git log "$previousTag".."$revision" -i --pretty="format:%s""$grepsArguments" | grep -oP --regexp="($regex)-[0-9]{5,6}" | sort -u | tr '\n' ',' | sed 's/,$//g')
 echo -e "$issueKeys"

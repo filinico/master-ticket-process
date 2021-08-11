@@ -53,7 +53,7 @@ async function run(): Promise<void> {
       github.context.payload.action === 'published'
     ) {
       core.info(`start onReleasePublished`)
-      await onReleasePublished(gitHubContext, jiraContext)
+      await onReleasePublished(gitHubContext, jiraContext, tagPrefix)
       core.info(`releasePublished finished`)
     }
   } catch (error) {
