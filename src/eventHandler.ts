@@ -79,7 +79,8 @@ export const onReleasePush = async (
       prerelease,
       draft,
       releaseId,
-      actionContext
+      actionContext,
+      tagPrefix
     )
   }
 }
@@ -92,13 +93,15 @@ const updateDeliveredIssues = async (
   prerelease: boolean,
   draft: boolean,
   releaseId: number | undefined,
-  actionContext: GitHubContext
+  actionContext: GitHubContext,
+  tagPrefix: string
 ): Promise<void> => {
   const {projectsKeys} = jiraContext
   const issueKeys = await extractJiraIssues(
     releaseVersion,
     projectsKeys.join(','),
-    workspace
+    workspace,
+    tagPrefix
   )
   await updateJira(jiraContext, issueKeys, version, prerelease)
   if (!prerelease && releaseId) {
@@ -117,7 +120,8 @@ const updateDeliveredIssues = async (
 
 export const onReleasePublished = async (
   actionContext: GitHubContext,
-  jiraContext: JiraContext
+  jiraContext: JiraContext,
+  tagPrefix: string
 ): Promise<void> => {
   const {context, workspace} = actionContext
   const {
@@ -141,7 +145,8 @@ export const onReleasePublished = async (
     prerelease,
     draft,
     id,
-    actionContext
+    actionContext,
+    tagPrefix
   )
 
   await updateMasterTicket(jiraContext, tag_name, releaseVersion, sha)

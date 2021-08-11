@@ -10260,20 +10260,20 @@ const onReleasePush = (actionContext, jiraContext, tagPrefix) => __awaiter(void 
     }
     core.info(`fixVersion:${fixVersion}`);
     if (fixVersion) {
-        yield updateDeliveredIssues(releaseVersion, workspace, jiraContext, fixVersion, prerelease, draft, releaseId, actionContext);
+        yield updateDeliveredIssues(releaseVersion, workspace, jiraContext, fixVersion, prerelease, draft, releaseId, actionContext, tagPrefix);
     }
 });
 exports.onReleasePush = onReleasePush;
-const updateDeliveredIssues = (releaseVersion, workspace, jiraContext, version, prerelease, draft, releaseId, actionContext) => __awaiter(void 0, void 0, void 0, function* () {
+const updateDeliveredIssues = (releaseVersion, workspace, jiraContext, version, prerelease, draft, releaseId, actionContext, tagPrefix) => __awaiter(void 0, void 0, void 0, function* () {
     const { projectsKeys } = jiraContext;
-    const issueKeys = yield gitRepo_1.extractJiraIssues(releaseVersion, projectsKeys.join(','), workspace);
+    const issueKeys = yield gitRepo_1.extractJiraIssues(releaseVersion, projectsKeys.join(','), workspace, tagPrefix);
     yield jiraUpdate_1.updateJira(jiraContext, issueKeys, version, prerelease);
     if (!prerelease && releaseId) {
         const releaseNote = yield jiraUpdate_1.generateReleaseNote(version, jiraContext);
         yield gitHubApi_1.updateRelease(actionContext, releaseId, releaseNote, version, `release/${releaseVersion}`, draft, prerelease);
     }
 });
-const onReleasePublished = (actionContext, jiraContext) => __awaiter(void 0, void 0, void 0, function* () {
+const onReleasePublished = (actionContext, jiraContext, tagPrefix) => __awaiter(void 0, void 0, void 0, function* () {
     const { context, workspace } = actionContext;
     const { payload: { release: { tag_name, target_commitish, prerelease, id, draft } }, sha } = context;
     core.info(`tag_name:${tag_name}`);
@@ -10283,7 +10283,7 @@ const onReleasePublished = (actionContext, jiraContext) => __awaiter(void 0, voi
     core.info(`revision:${sha}`);
     const releaseVersion = semantic_version_1.getVersionFromBranch(target_commitish, 'release');
     core.info(`Release version:${releaseVersion}`);
-    yield updateDeliveredIssues(releaseVersion, workspace, jiraContext, tag_name, prerelease, draft, id, actionContext);
+    yield updateDeliveredIssues(releaseVersion, workspace, jiraContext, tag_name, prerelease, draft, id, actionContext, tagPrefix);
     yield jiraUpdate_1.updateMasterTicket(jiraContext, tag_name, releaseVersion, sha);
     yield createNextVersion(tag_name, target_commitish, actionContext, jiraContext);
 });
@@ -10349,10 +10349,10 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.convertScriptResults = exports.extractJiraIssues = void 0;
 const promisify_child_process_1 = __nccwpck_require__(2809);
 const core = __importStar(__nccwpck_require__(2186));
-const extractJiraIssues = (releaseVersion, projectsKeys, githubWorkspace) => __awaiter(void 0, void 0, void 0, function* () {
+const extractJiraIssues = (releaseVersion, projectsKeys, githubWorkspace, tagPrefix) => __awaiter(void 0, void 0, void 0, function* () {
     yield promisify_child_process_1.exec(`chmod +x ${__dirname}/../extract-issues`);
     yield promisify_child_process_1.exec(`cd ${githubWorkspace}`);
-    const { stdout, stderr } = yield promisify_child_process_1.exec(`${__dirname}/../extract-issues -r ${releaseVersion} -p ${projectsKeys}`);
+    const { stdout, stderr } = yield promisify_child_process_1.exec(`${__dirname}/../extract-issues -r ${releaseVersion} -p ${projectsKeys} -t ${tagPrefix}`);
     core.info(`issueKeysCommaSeparated:--${stdout}--`);
     if (stderr) {
         core.error(stderr.toString());
@@ -10880,7 +10880,7 @@ function run() {
             else if (process.env.GITHUB_EVENT_NAME === 'release' &&
                 github.context.payload.action === 'published') {
                 core.info(`start onReleasePublished`);
-                yield eventHandler_1.onReleasePublished(gitHubContext, jiraContext);
+                yield eventHandler_1.onReleasePublished(gitHubContext, jiraContext, tagPrefix);
                 core.info(`releasePublished finished`);
             }
         }
