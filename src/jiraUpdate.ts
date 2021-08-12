@@ -97,7 +97,7 @@ const filterIssuesWithoutCurrentFixVersion = async (
   const groupedIssues = issueKeys.join(',')
   const searchIssuesWithoutCurrentFixVersion = `project in (${projectsKeys.join(
     ','
-  )}) AND fixVersion not in (${fixVersion}) AND issuekey in (${groupedIssues})`
+  )}) AND (fixVersion not in (${fixVersion}) OR fixVersion is EMPTY) AND issuekey in (${groupedIssues})`
   core.info(`searchIssuesQuery:[${searchIssuesWithoutCurrentFixVersion}]`)
   return await searchIssues(context, searchIssuesWithoutCurrentFixVersion, [
     'issuelinks'
