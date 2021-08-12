@@ -10468,7 +10468,7 @@ exports.updateJira = updateJira;
 const filterIssuesWithoutCurrentFixVersion = (context, issueKeys, fixVersion) => __awaiter(void 0, void 0, void 0, function* () {
     const { projectsKeys } = context;
     const groupedIssues = issueKeys.join(',');
-    const searchIssuesWithoutCurrentFixVersion = `project in (${projectsKeys.join(',')}) AND fixVersion not in (${fixVersion}) AND issuekey in (${groupedIssues})`;
+    const searchIssuesWithoutCurrentFixVersion = `project in (${projectsKeys.join(',')}) AND (fixVersion not in (${fixVersion}) OR fixVersion is EMPTY) AND issuekey in (${groupedIssues})`;
     core.info(`searchIssuesQuery:[${searchIssuesWithoutCurrentFixVersion}]`);
     return yield jiraApi_1.searchIssues(context, searchIssuesWithoutCurrentFixVersion, [
         'issuelinks'
