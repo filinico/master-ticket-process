@@ -8,6 +8,7 @@ import {
 import {
   generateNextMinorVersion,
   generateNextPatchVersion,
+  generatePreviousPatchVersion,
   getVersionFromBranch
 } from './semantic-version'
 import {
@@ -149,7 +150,14 @@ export const onReleasePublished = async (
     tagPrefix
   )
 
-  await updateMasterTicket(jiraContext, tag_name, releaseVersion, sha)
+  const previousPatchVersion = generatePreviousPatchVersion(tag_name)
+  await updateMasterTicket(
+    jiraContext,
+    tag_name,
+    releaseVersion,
+    sha,
+    previousPatchVersion
+  )
 
   await createNextVersion(
     tag_name,
