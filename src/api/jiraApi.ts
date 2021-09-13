@@ -75,6 +75,9 @@ interface JiraIssueDescriptionText {
   text: string
   marks?: {
     type: string
+    attrs?: {
+      href: string
+    }
   }[]
 }
 

@@ -10760,7 +10760,15 @@ const updateMasterTicket = (jiraContext, version, releaseVersion, revision, prev
                                                             content: [
                                                                 {
                                                                     type: 'text',
-                                                                    text: `https://jenkins.bellin.cloud/view/E2E-Tests-State/job/Coupa_treasury_tm5/job/e2e_test/job/release%2F${releaseVersion}/`
+                                                                    text: `https://jenkins.bellin.cloud/view/E2E-Tests-State/job/Coupa_treasury_tm5/job/e2e_test/job/release%2F${releaseVersion}/`,
+                                                                    marks: [
+                                                                        {
+                                                                            type: 'link',
+                                                                            attrs: {
+                                                                                href: `https://jenkins.bellin.cloud/view/E2E-Tests-State/job/Coupa_treasury_tm5/job/e2e_test/job/release%2F${releaseVersion}/`
+                                                                            }
+                                                                        }
+                                                                    ]
                                                                 }
                                                             ]
                                                         }
@@ -10800,7 +10808,15 @@ const updateMasterTicket = (jiraContext, version, releaseVersion, revision, prev
                                                             content: [
                                                                 {
                                                                     type: 'text',
-                                                                    text: `https://github.com/coupa/treasury_tm5/compare/${previousPatchVersion}...${version}`
+                                                                    text: `https://github.com/coupa/treasury_tm5/compare/${previousPatchVersion}...${version}`,
+                                                                    marks: [
+                                                                        {
+                                                                            type: 'link',
+                                                                            attrs: {
+                                                                                href: `https://github.com/coupa/treasury_tm5/compare/${previousPatchVersion}...${version}`
+                                                                            }
+                                                                        }
+                                                                    ]
                                                                 }
                                                             ]
                                                         }
