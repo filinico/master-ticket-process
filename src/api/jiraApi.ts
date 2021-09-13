@@ -75,11 +75,15 @@ interface JiraIssueDescriptionText {
   text: string
   marks?: {
     type: string
+    attrs?: {
+      href: string
+    }
   }[]
 }
 
 interface JiraCustomField {
-  value: string
+  id?: string
+  value?: string
   child?: {
     value: string
   }
@@ -107,6 +111,7 @@ interface JiraFields {
   customfield_23713?: JiraCustomField
   customfield_23604?: JiraCustomField
   customfield_23599?: JiraCustomField
+  customfield_12803?: JiraCustomField
 }
 
 interface JiraIssueUpdate {

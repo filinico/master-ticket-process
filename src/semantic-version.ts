@@ -2,20 +2,31 @@ const MinorVersionIndex = 1
 const PatchVersionIndex = 2
 
 export const generateNextPatchVersion = (versionNumber: string): string => {
-  return generateNextVersion(versionNumber, PatchVersionIndex)
+  return generateVersion(versionNumber, PatchVersionIndex)
 }
 
 export const generateNextMinorVersion = (versionNumber: string): string => {
-  return generateNextVersion(versionNumber, MinorVersionIndex)
+  return generateVersion(versionNumber, MinorVersionIndex)
 }
 
-const generateNextVersion = (
+export const generatePreviousPatchVersion = (versionNumber: string): string => {
+  return generateVersion(versionNumber, PatchVersionIndex, false)
+}
+
+const generateVersion = (
   versionNumber: string,
-  versionIndex: number
+  versionIndex: number,
+  nextVersion = true
 ): string => {
   const versions = versionNumber.split('.')
-  const nextVersion = parseInt(versions[versionIndex]) + 1
-  versions[versionIndex] = nextVersion.toString()
+  const currentVersion = parseInt(versions[versionIndex])
+  let versionGenerated
+  if (nextVersion) {
+    versionGenerated = currentVersion + 1
+  } else {
+    versionGenerated = currentVersion - 1
+  }
+  versions[versionIndex] = versionGenerated.toString()
   return versions.join('.')
 }
 

@@ -181,7 +181,8 @@ export const updateMasterTicket = async (
   jiraContext: JiraContext,
   version: string,
   releaseVersion: string,
-  revision: string
+  revision: string,
+  previousPatchVersion: string
 ): Promise<void> => {
   const masterTicketKey = await getMasterTicketKey(jiraContext, version)
   if (masterTicketKey) {
@@ -379,6 +380,142 @@ export const updateMasterTicket = async (
                           ]
                         }
                       ]
+                    },
+                    {
+                      type: 'tableRow',
+                      content: [
+                        {
+                          type: 'tableCell',
+                          attrs: {},
+                          content: [
+                            {
+                              type: 'paragraph',
+                              content: [
+                                {
+                                  type: 'text',
+                                  text: 'Automation Test',
+                                  marks: [
+                                    {
+                                      type: 'strong'
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          type: 'tableCell',
+                          attrs: {},
+                          content: [
+                            {
+                              type: 'paragraph',
+                              content: [
+                                {
+                                  type: 'text',
+                                  text: `https://jenkins.bellin.cloud/view/E2E-Tests-State/job/Coupa_treasury_tm5/job/e2e_test/job/release%2F${releaseVersion}/`,
+                                  marks: [
+                                    {
+                                      type: 'link',
+                                      attrs: {
+                                        href: `https://jenkins.bellin.cloud/view/E2E-Tests-State/job/Coupa_treasury_tm5/job/e2e_test/job/release%2F${releaseVersion}/`
+                                      }
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      type: 'tableRow',
+                      content: [
+                        {
+                          type: 'tableCell',
+                          attrs: {},
+                          content: [
+                            {
+                              type: 'paragraph',
+                              content: [
+                                {
+                                  type: 'text',
+                                  text: 'GitHub Diff',
+                                  marks: [
+                                    {
+                                      type: 'strong'
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          type: 'tableCell',
+                          attrs: {},
+                          content: [
+                            {
+                              type: 'paragraph',
+                              content: [
+                                {
+                                  type: 'text',
+                                  text: `https://github.com/coupa/treasury_tm5/compare/${previousPatchVersion}...${version}`,
+                                  marks: [
+                                    {
+                                      type: 'link',
+                                      attrs: {
+                                        href: `https://github.com/coupa/treasury_tm5/compare/${previousPatchVersion}...${version}`
+                                      }
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      type: 'tableRow',
+                      content: [
+                        {
+                          type: 'tableCell',
+                          attrs: {},
+                          content: [
+                            {
+                              type: 'paragraph',
+                              content: [
+                                {
+                                  type: 'text',
+                                  text: 'Artifact',
+                                  marks: [
+                                    {
+                                      type: 'strong'
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          type: 'tableCell',
+                          attrs: {},
+                          content: [
+                            {
+                              type: 'paragraph',
+                              content: [
+                                {
+                                  type: 'text',
+                                  text: ' '
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
                     }
                   ]
                 }
@@ -442,6 +579,9 @@ export const createMasterTicket = async (
         },
         customfield_21603: {
           value: 'Treasury Management (CTM)'
+        },
+        customfield_12803: {
+          id: masterTicketVersionId
         }
       }
     })

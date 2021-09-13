@@ -10284,7 +10284,8 @@ const onReleasePublished = (actionContext, jiraContext, tagPrefix) => __awaiter(
     const releaseVersion = semantic_version_1.getVersionFromBranch(target_commitish, 'release');
     core.info(`Release version:${releaseVersion}`);
     yield updateDeliveredIssues(releaseVersion, workspace, jiraContext, tag_name, prerelease, draft, id, actionContext, tagPrefix);
-    yield jiraUpdate_1.updateMasterTicket(jiraContext, tag_name, releaseVersion, sha);
+    const previousPatchVersion = semantic_version_1.generatePreviousPatchVersion(tag_name);
+    yield jiraUpdate_1.updateMasterTicket(jiraContext, tag_name, releaseVersion, sha, previousPatchVersion);
     yield createNextVersion(tag_name, target_commitish, actionContext, jiraContext);
 });
 exports.onReleasePublished = onReleasePublished;
@@ -10529,7 +10530,7 @@ const createIfNotExistsJiraVersion = (context, fixVersion, projectId, projectKey
     return version;
 });
 exports.createIfNotExistsJiraVersion = createIfNotExistsJiraVersion;
-const updateMasterTicket = (jiraContext, version, releaseVersion, revision) => __awaiter(void 0, void 0, void 0, function* () {
+const updateMasterTicket = (jiraContext, version, releaseVersion, revision, previousPatchVersion) => __awaiter(void 0, void 0, void 0, function* () {
     const masterTicketKey = yield exports.getMasterTicketKey(jiraContext, version);
     if (masterTicketKey) {
         yield jiraApi_1.updateIssue(jiraContext, masterTicketKey, {
@@ -10726,6 +10727,142 @@ const updateMasterTicket = (jiraContext, version, releaseVersion, revision) => _
                                                     ]
                                                 }
                                             ]
+                                        },
+                                        {
+                                            type: 'tableRow',
+                                            content: [
+                                                {
+                                                    type: 'tableCell',
+                                                    attrs: {},
+                                                    content: [
+                                                        {
+                                                            type: 'paragraph',
+                                                            content: [
+                                                                {
+                                                                    type: 'text',
+                                                                    text: 'Automation Test',
+                                                                    marks: [
+                                                                        {
+                                                                            type: 'strong'
+                                                                        }
+                                                                    ]
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                {
+                                                    type: 'tableCell',
+                                                    attrs: {},
+                                                    content: [
+                                                        {
+                                                            type: 'paragraph',
+                                                            content: [
+                                                                {
+                                                                    type: 'text',
+                                                                    text: `https://jenkins.bellin.cloud/view/E2E-Tests-State/job/Coupa_treasury_tm5/job/e2e_test/job/release%2F${releaseVersion}/`,
+                                                                    marks: [
+                                                                        {
+                                                                            type: 'link',
+                                                                            attrs: {
+                                                                                href: `https://jenkins.bellin.cloud/view/E2E-Tests-State/job/Coupa_treasury_tm5/job/e2e_test/job/release%2F${releaseVersion}/`
+                                                                            }
+                                                                        }
+                                                                    ]
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            type: 'tableRow',
+                                            content: [
+                                                {
+                                                    type: 'tableCell',
+                                                    attrs: {},
+                                                    content: [
+                                                        {
+                                                            type: 'paragraph',
+                                                            content: [
+                                                                {
+                                                                    type: 'text',
+                                                                    text: 'GitHub Diff',
+                                                                    marks: [
+                                                                        {
+                                                                            type: 'strong'
+                                                                        }
+                                                                    ]
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                {
+                                                    type: 'tableCell',
+                                                    attrs: {},
+                                                    content: [
+                                                        {
+                                                            type: 'paragraph',
+                                                            content: [
+                                                                {
+                                                                    type: 'text',
+                                                                    text: `https://github.com/coupa/treasury_tm5/compare/${previousPatchVersion}...${version}`,
+                                                                    marks: [
+                                                                        {
+                                                                            type: 'link',
+                                                                            attrs: {
+                                                                                href: `https://github.com/coupa/treasury_tm5/compare/${previousPatchVersion}...${version}`
+                                                                            }
+                                                                        }
+                                                                    ]
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            type: 'tableRow',
+                                            content: [
+                                                {
+                                                    type: 'tableCell',
+                                                    attrs: {},
+                                                    content: [
+                                                        {
+                                                            type: 'paragraph',
+                                                            content: [
+                                                                {
+                                                                    type: 'text',
+                                                                    text: 'Artifact',
+                                                                    marks: [
+                                                                        {
+                                                                            type: 'strong'
+                                                                        }
+                                                                    ]
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                {
+                                                    type: 'tableCell',
+                                                    attrs: {},
+                                                    content: [
+                                                        {
+                                                            type: 'paragraph',
+                                                            content: [
+                                                                {
+                                                                    type: 'text',
+                                                                    text: ' '
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            ]
                                         }
                                     ]
                                 }
@@ -10783,6 +10920,9 @@ const createMasterTicket = (version, masterIssueType, masterProjectId, masterTic
                 },
                 customfield_21603: {
                     value: 'Treasury Management (CTM)'
+                },
+                customfield_12803: {
+                    id: masterTicketVersionId
                 }
             }
         });
@@ -10901,21 +11041,32 @@ run();
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getVersionFromBranch = exports.generateNextMinorVersion = exports.generateNextPatchVersion = void 0;
+exports.getVersionFromBranch = exports.generatePreviousPatchVersion = exports.generateNextMinorVersion = exports.generateNextPatchVersion = void 0;
 const MinorVersionIndex = 1;
 const PatchVersionIndex = 2;
 const generateNextPatchVersion = (versionNumber) => {
-    return generateNextVersion(versionNumber, PatchVersionIndex);
+    return generateVersion(versionNumber, PatchVersionIndex);
 };
 exports.generateNextPatchVersion = generateNextPatchVersion;
 const generateNextMinorVersion = (versionNumber) => {
-    return generateNextVersion(versionNumber, MinorVersionIndex);
+    return generateVersion(versionNumber, MinorVersionIndex);
 };
 exports.generateNextMinorVersion = generateNextMinorVersion;
-const generateNextVersion = (versionNumber, versionIndex) => {
+const generatePreviousPatchVersion = (versionNumber) => {
+    return generateVersion(versionNumber, PatchVersionIndex, false);
+};
+exports.generatePreviousPatchVersion = generatePreviousPatchVersion;
+const generateVersion = (versionNumber, versionIndex, nextVersion = true) => {
     const versions = versionNumber.split('.');
-    const nextVersion = parseInt(versions[versionIndex]) + 1;
-    versions[versionIndex] = nextVersion.toString();
+    const currentVersion = parseInt(versions[versionIndex]);
+    let versionGenerated;
+    if (nextVersion) {
+        versionGenerated = currentVersion + 1;
+    }
+    else {
+        versionGenerated = currentVersion - 1;
+    }
+    versions[versionIndex] = versionGenerated.toString();
     return versions.join('.');
 };
 const getVersionFromBranch = (branchName, branchType) => {
