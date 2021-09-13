@@ -10840,7 +10840,7 @@ const updateMasterTicket = (jiraContext, version, releaseVersion, revision, prev
                                                             content: [
                                                                 {
                                                                     type: 'text',
-                                                                    text: ''
+                                                                    text: ' '
                                                                 }
                                                             ]
                                                         }
@@ -10904,6 +10904,9 @@ const createMasterTicket = (version, masterIssueType, masterProjectId, masterTic
                 },
                 customfield_21603: {
                     value: 'Treasury Management (CTM)'
+                },
+                customfield_12803: {
+                    id: masterTicketVersionId
                 }
             }
         });

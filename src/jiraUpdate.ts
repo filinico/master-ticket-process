@@ -493,7 +493,7 @@ export const updateMasterTicket = async (
                               content: [
                                 {
                                   type: 'text',
-                                  text: ''
+                                  text: ' '
                                 }
                               ]
                             }
@@ -563,6 +563,9 @@ export const createMasterTicket = async (
         },
         customfield_21603: {
           value: 'Treasury Management (CTM)'
+        },
+        customfield_12803: {
+          id: masterTicketVersionId
         }
       }
     })
