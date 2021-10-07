@@ -24,9 +24,29 @@ export const updateJira = async (
     return
   }
   core.info(`fixVersion:[${fixVersion}]`)
-  const issues = await filterIssuesWithoutCurrentFixVersion(
+  const issuesWithSubTasks = await filterIssuesWithoutCurrentFixVersion(
     context,
     issueKeys,
+    fixVersion
+  )
+  core.info(
+    `issuesWithSubTasks:[${issuesWithSubTasks
+      .map(issue => issue.key)
+      .join(',')}]`
+  )
+  const issuesKeysWithoutSubTasks = issuesWithSubTasks.map(issue => {
+    if (issue.fields.issuetype?.subtask && issue.fields.parent) {
+      return issue.fields.parent.key
+    } else {
+      return issue.key
+    }
+  })
+  core.info(
+    `issuesKeysWithoutSubTasks:[${issuesKeysWithoutSubTasks.join(',')}]`
+  )
+  const issues = await filterIssuesWithoutCurrentFixVersion(
+    context,
+    issuesKeysWithoutSubTasks,
     fixVersion
   )
   if (!issues || issues.length === 0) {
@@ -88,20 +108,36 @@ export const updateJira = async (
   }
 }
 
-const filterIssuesWithoutCurrentFixVersion = async (
+export const filterIssuesWithoutCurrentFixVersion = async (
   context: JiraContext,
   issueKeys: string[],
   fixVersion: string
 ): Promise<SearchedJiraIssue[]> => {
   const {projectsKeys} = context
-  const groupedIssues = issueKeys.join(',')
-  const searchIssuesWithoutCurrentFixVersion = `project in (${projectsKeys.join(
-    ','
-  )}) AND (fixVersion not in (${fixVersion}) OR fixVersion is EMPTY) AND issuekey in (${groupedIssues})`
-  core.info(`searchIssuesQuery:[${searchIssuesWithoutCurrentFixVersion}]`)
-  return await searchIssues(context, searchIssuesWithoutCurrentFixVersion, [
-    'issuelinks'
-  ])
+  const batchSize = 4000
+  let issueKeysResult: SearchedJiraIssue[] = []
+  let start = 0
+  let end = 0
+  do {
+    end = start + batchSize
+    const currentBatch = issueKeys.slice(start, end)
+    const groupedIssues = currentBatch.join(',')
+    const searchIssuesWithoutCurrentFixVersion = `project in (${projectsKeys.join(
+      ','
+    )}) AND (fixVersion not in (${fixVersion}) OR fixVersion is EMPTY) AND issuekey in (${groupedIssues})`
+    core.info(`searchIssuesQuery:[${searchIssuesWithoutCurrentFixVersion}]`)
+    const currentResult = await searchIssues(
+      context,
+      searchIssuesWithoutCurrentFixVersion,
+      ['issuelinks', 'issuetype', 'parent']
+    )
+    core.info(
+      `currentResult:[${currentResult.map(issue => issue.key).join(',')}]`
+    )
+    issueKeysResult = issueKeysResult.concat(currentResult)
+    start = end
+  } while (end < issueKeys.length)
+  return issueKeysResult
 }
 
 const listIssuesSummaryWithFixVersion = async (

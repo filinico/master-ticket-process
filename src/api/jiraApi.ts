@@ -34,6 +34,12 @@ export interface SearchedJiraIssue {
   key: string
   fields: {
     summary?: string
+    parent?: SearchedJiraIssue
+    issuetype?: {
+      id: string
+      subtask: boolean
+      name: string
+    }
     issuelinks?: {
       id: string
       self: string
