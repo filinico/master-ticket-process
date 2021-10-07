@@ -10412,7 +10412,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.generateReleaseNote = exports.createMasterTicket = exports.updateMasterTicket = exports.createIfNotExistsJiraVersion = exports.getMasterTicketKey = exports.updateJira = void 0;
+exports.generateReleaseNote = exports.createMasterTicket = exports.updateMasterTicket = exports.createIfNotExistsJiraVersion = exports.getMasterTicketKey = exports.filterIssuesWithoutCurrentFixVersion = exports.updateJira = void 0;
 const jiraApi_1 = __nccwpck_require__(8286);
 const core = __importStar(__nccwpck_require__(2186));
 const updateJira = (context, issueKeys, fixVersion, prerelease) => __awaiter(void 0, void 0, void 0, function* () {
@@ -10420,7 +10420,21 @@ const updateJira = (context, issueKeys, fixVersion, prerelease) => __awaiter(voi
         return;
     }
     core.info(`fixVersion:[${fixVersion}]`);
-    const issues = yield filterIssuesWithoutCurrentFixVersion(context, issueKeys, fixVersion);
+    const issuesWithSubTasks = yield exports.filterIssuesWithoutCurrentFixVersion(context, issueKeys, fixVersion);
+    core.info(`issuesWithSubTasks:[${issuesWithSubTasks
+        .map(issue => issue.key)
+        .join(',')}]`);
+    const issuesKeysWithoutSubTasks = issuesWithSubTasks.map(issue => {
+        var _a;
+        if (((_a = issue.fields.issuetype) === null || _a === void 0 ? void 0 : _a.subtask) && issue.fields.parent) {
+            return issue.fields.parent.key;
+        }
+        else {
+            return issue.key;
+        }
+    });
+    core.info(`issuesKeysWithoutSubTasks:[${issuesKeysWithoutSubTasks.join(',')}]`);
+    const issues = yield exports.filterIssuesWithoutCurrentFixVersion(context, issuesKeysWithoutSubTasks, fixVersion);
     if (!issues || issues.length === 0) {
         return;
     }
@@ -10468,13 +10482,24 @@ const updateJira = (context, issueKeys, fixVersion, prerelease) => __awaiter(voi
 exports.updateJira = updateJira;
 const filterIssuesWithoutCurrentFixVersion = (context, issueKeys, fixVersion) => __awaiter(void 0, void 0, void 0, function* () {
     const { projectsKeys } = context;
-    const groupedIssues = issueKeys.join(',');
-    const searchIssuesWithoutCurrentFixVersion = `project in (${projectsKeys.join(',')}) AND (fixVersion not in (${fixVersion}) OR fixVersion is EMPTY) AND issuekey in (${groupedIssues})`;
-    core.info(`searchIssuesQuery:[${searchIssuesWithoutCurrentFixVersion}]`);
-    return yield jiraApi_1.searchIssues(context, searchIssuesWithoutCurrentFixVersion, [
-        'issuelinks'
-    ]);
+    const batchSize = 4000;
+    let issueKeysResult = [];
+    let start = 0;
+    let end = 0;
+    do {
+        end = start + batchSize;
+        const currentBatch = issueKeys.slice(start, end);
+        const groupedIssues = currentBatch.join(',');
+        const searchIssuesWithoutCurrentFixVersion = `project in (${projectsKeys.join(',')}) AND (fixVersion not in (${fixVersion}) OR fixVersion is EMPTY) AND issuekey in (${groupedIssues})`;
+        core.info(`searchIssuesQuery:[${searchIssuesWithoutCurrentFixVersion}]`);
+        const currentResult = yield jiraApi_1.searchIssues(context, searchIssuesWithoutCurrentFixVersion, ['issuelinks', 'issuetype', 'parent']);
+        core.info(`currentResult:[${currentResult.map(issue => issue.key).join(',')}]`);
+        issueKeysResult = issueKeysResult.concat(currentResult);
+        start = end;
+    } while (end < issueKeys.length);
+    return issueKeysResult;
 });
+exports.filterIssuesWithoutCurrentFixVersion = filterIssuesWithoutCurrentFixVersion;
 const listIssuesSummaryWithFixVersion = (context, fixVersion) => __awaiter(void 0, void 0, void 0, function* () {
     const { projectsKeys } = context;
     const issuesWithFixVersion = `project in (${projectsKeys.join(',')}) AND fixVersion in (${fixVersion})`;
