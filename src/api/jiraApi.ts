@@ -209,7 +209,7 @@ export const searchIssues = async (
       `https://${subDomain}.atlassian.net/rest/api/3/search`,
       {
         jql: jQLQuery,
-        maxResults: 15,
+        maxResults: 100,
         fieldsByKeys: true,
         fields: properties,
         startAt: 0
