@@ -1,4 +1,7 @@
-import {generateReleaseNoteFromIssues, SearchedJiraIssue} from '../src/api/jiraApi'
+import {
+  generateReleaseNoteFromIssues,
+  SearchedJiraIssue
+} from '../src/api/jiraApi'
 
 const issues: SearchedJiraIssue[] = [
   {
@@ -21,7 +24,8 @@ const issues: SearchedJiraIssue[] = [
   }
 ]
 
-const expectedReleaseNote = '' +
+const expectedReleaseNote =
+  '' +
   '- XX-1234 New awesome feature 1\n' +
   '- XX-4567 Extend great feature 2\n' +
   '- XX-666 Fix feature 1'

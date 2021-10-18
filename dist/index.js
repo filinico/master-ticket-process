@@ -10065,7 +10065,7 @@ const searchIssues = (context, jQLQuery, properties) => __awaiter(void 0, void 0
         core.info('request searchIssues');
         const response = yield axios_1.default.post(`https://${subDomain}.atlassian.net/rest/api/3/search`, {
             jql: jQLQuery,
-            maxResults: 15,
+            maxResults: 100,
             fieldsByKeys: true,
             fields: properties,
             startAt: 0
@@ -10364,7 +10364,7 @@ const extractJiraIssues = (releaseVersion, projectsKeys, githubWorkspace, tagPre
 exports.extractJiraIssues = extractJiraIssues;
 const convertScriptResults = (issueKeysCommaSeparated) => {
     let issueKeys = [];
-    if (issueKeysCommaSeparated && issueKeysCommaSeparated.includes(',')) {
+    if (issueKeysCommaSeparated && issueKeysCommaSeparated !== '') {
         const searchRegExp = /\s/g;
         const resultsFormatted = issueKeysCommaSeparated.replace(searchRegExp, '');
         if (resultsFormatted !== '') {
