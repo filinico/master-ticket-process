@@ -24,7 +24,7 @@ export const convertScriptResults = (
   issueKeysCommaSeparated: string | null
 ): string[] => {
   let issueKeys: string[] = []
-  if (issueKeysCommaSeparated && issueKeysCommaSeparated.includes(',')) {
+  if (issueKeysCommaSeparated && issueKeysCommaSeparated !== '') {
     const searchRegExp = /\s/g
     const resultsFormatted = issueKeysCommaSeparated.replace(searchRegExp, '')
     if (resultsFormatted !== '') {
