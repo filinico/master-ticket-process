@@ -18,7 +18,7 @@ export const updateJira = async (
   context: JiraContext,
   issueKeys: string[],
   fixVersion: string,
-  prerelease: boolean
+  isMajorVersion: boolean
 ): Promise<void> => {
   if (!issueKeys || issueKeys.length === 0) {
     return
@@ -96,7 +96,7 @@ export const updateJira = async (
     }
     await updateIssue(context, issueKey, fixVersionUpdates[index])
     if (
-      !prerelease &&
+      !isMajorVersion &&
       masterTicketIssueKey &&
       !linkedIssueKeys.find(i => i === issueKey)
     ) {

@@ -125,8 +125,7 @@ export const updateRelease = async (
   releaseNote: string,
   tagName: string,
   targetBranch: string,
-  draft: boolean,
-  prerelease: boolean
+  draft: boolean
 ): Promise<void> => {
   const {octokit, context} = actionContext
   await octokit.repos.updateRelease({
@@ -138,6 +137,6 @@ export const updateRelease = async (
     target_commitish: targetBranch,
     name: tagName,
     draft,
-    prerelease
+    prerelease: false
   })
 }

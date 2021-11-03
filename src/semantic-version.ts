@@ -41,3 +41,14 @@ export const getVersionFromBranch = (
   }
   return branchName
 }
+
+export const verifyNumbering = (
+  tagName: string,
+  tagPrefix: string
+): boolean => {
+  const regex = `^${tagPrefix}[0-9]{1,2}.[0-9]{1,2}.[0-9]{1,4}$`
+  return !!tagName.match(new RegExp(regex, 'g'))
+}
+
+export const checkMajorVersion = (tagName: string): boolean =>
+  tagName.endsWith('.0')
