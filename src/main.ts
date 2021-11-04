@@ -50,11 +50,15 @@ async function run(): Promise<void> {
       core.info(`releasePush finished`)
     } else if (
       process.env.GITHUB_EVENT_NAME === 'release' &&
-      github.context.payload.action === 'published'
+      github.context.payload.action === 'released'
     ) {
       core.info(`start onReleasePublished`)
       await onReleasePublished(gitHubContext, jiraContext, tagPrefix)
       core.info(`releasePublished finished`)
+    } else {
+      core.error(
+        `Trigger event type not supported. Can only react on push or release event with type released.`
+      )
     }
   } catch (error) {
     core.info(`process terminated, an error happened:`)
