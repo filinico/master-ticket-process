@@ -2,7 +2,9 @@ import {
   generateNextMinorVersion,
   generateNextPatchVersion,
   generatePreviousPatchVersion,
-  getVersionFromBranch
+  getVersionFromBranch,
+  checkMajorVersion,
+  verifyNumbering
 } from '../src/semantic-version'
 
 test('generate next patch version', async () => {
@@ -34,4 +36,27 @@ test('get version from branch', async () => {
   expect(majorVersion).toEqual('10.0')
   const notReleaseBranch = getVersionFromBranch('refs/heads/test', 'release')
   expect(notReleaseBranch).toEqual('refs/heads/test')
+})
+
+test('comply to version numbering', async () => {
+  expect(verifyNumbering('v1.0.10', 'v')).toBe(true)
+  expect(verifyNumbering('v35.56.100', 'v')).toBe(true)
+  expect(verifyNumbering('v32.0.1', 'v')).toBe(true)
+  expect(verifyNumbering('v33.0.10', 'v')).toBe(true)
+  expect(verifyNumbering('v66.6.6666', 'v')).toBe(true)
+})
+
+test('is a major version', async () => {
+  expect(verifyNumbering('v10.0.0', 'v')).toBe(true)
+  expect(checkMajorVersion('v10.0.0')).toBe(true)
+})
+
+test("don't comply to version numbering", async () => {
+  expect(verifyNumbering('pr1.0.10', 'v')).toBe(false)
+  expect(verifyNumbering('v359.56.100', 'v')).toBe(false)
+  expect(verifyNumbering('v32.0.0-alpha', 'v')).toBe(false)
+  expect(verifyNumbering('v33.100.10', 'v')).toBe(false)
+  expect(verifyNumbering('v66.6.66669', 'v')).toBe(false)
+  expect(verifyNumbering('5.66.6.66669', 'v')).toBe(false)
+  expect(verifyNumbering('566.6.66669', 'v')).toBe(false)
 })

@@ -9991,7 +9991,7 @@ const createRelease = (actionContext, tagName, targetBranch) => __awaiter(void 0
     });
 });
 exports.createRelease = createRelease;
-const updateRelease = (actionContext, releaseId, releaseNote, tagName, targetBranch, draft, prerelease) => __awaiter(void 0, void 0, void 0, function* () {
+const updateRelease = (actionContext, releaseId, releaseNote, tagName, targetBranch, draft) => __awaiter(void 0, void 0, void 0, function* () {
     const { octokit, context } = actionContext;
     yield octokit.repos.updateRelease({
         owner: context.repo.owner,
@@ -10002,7 +10002,7 @@ const updateRelease = (actionContext, releaseId, releaseNote, tagName, targetBra
         target_commitish: targetBranch,
         name: tagName,
         draft,
-        prerelease
+        prerelease: false
     });
 });
 exports.updateRelease = updateRelease;
@@ -10227,50 +10227,53 @@ const core = __importStar(__nccwpck_require__(2186));
 const onReleasePush = (actionContext, jiraContext, tagPrefix) => __awaiter(void 0, void 0, void 0, function* () {
     const { context, workspace } = actionContext;
     const { payload: { ref } } = context;
+    if (!ref.includes('release')) {
+        throw new Error(`The workflow is triggered on ${ref} instead of a release branch. Workflow will not be executed.`);
+    }
     const releaseVersion = semantic_version_1.getVersionFromBranch(ref, 'release');
     core.info(`Release version:${releaseVersion}`);
     const lastTagName = yield gitHubApi_1.getLastTagName(actionContext, `${tagPrefix}${releaseVersion}`);
     core.info(`lastTagName:${lastTagName}`);
     let fixVersion = null;
-    let prerelease = false;
+    let isMajorVersion = true;
     let draft = true;
-    let releaseId;
+    let releaseId = null;
     if (!lastTagName) {
-        const gitHubMajorVersion = yield gitHubApi_1.getReleaseByTagName(actionContext, `${tagPrefix}${releaseVersion}.0`);
-        if (gitHubMajorVersion) {
-            fixVersion = gitHubMajorVersion.tagName;
-            prerelease = gitHubMajorVersion.isPrerelease;
-            draft = gitHubMajorVersion.isDraft;
-            releaseId = gitHubMajorVersion.databaseId;
-        }
+        throw new Error(`The pre-release tag is missing for the ${ref}. Workflow will not be executed. Please tag the release branch and restart the workflow.`);
     }
     else if (lastTagName) {
-        const nextPatchVersion = semantic_version_1.generateNextPatchVersion(lastTagName);
-        let gitHubRelease = yield gitHubApi_1.getReleaseByTagName(actionContext, nextPatchVersion);
-        if (!gitHubRelease) {
-            const nextMinorVersion = semantic_version_1.generateNextMinorVersion(lastTagName);
-            gitHubRelease = yield gitHubApi_1.getReleaseByTagName(actionContext, nextMinorVersion);
+        if (semantic_version_1.verifyNumbering(lastTagName, tagPrefix)) {
+            const nextPatchVersion = semantic_version_1.generateNextPatchVersion(lastTagName);
+            let gitHubRelease = yield gitHubApi_1.getReleaseByTagName(actionContext, nextPatchVersion);
+            if (!gitHubRelease) {
+                const nextMinorVersion = semantic_version_1.generateNextMinorVersion(lastTagName);
+                gitHubRelease = yield gitHubApi_1.getReleaseByTagName(actionContext, nextMinorVersion);
+            }
+            if (gitHubRelease) {
+                fixVersion = gitHubRelease.tagName;
+                isMajorVersion = false;
+                draft = gitHubRelease.isDraft;
+                releaseId = gitHubRelease.databaseId;
+            }
         }
-        if (gitHubRelease) {
-            fixVersion = gitHubRelease.tagName;
-            prerelease = gitHubRelease.isPrerelease;
-            draft = gitHubRelease.isDraft;
-            releaseId = gitHubRelease.databaseId;
+        else if (lastTagName.includes('0.0')) {
+            fixVersion = `${tagPrefix}${releaseVersion}.0`;
+            isMajorVersion = true;
         }
     }
     core.info(`fixVersion:${fixVersion}`);
     if (fixVersion) {
-        yield updateDeliveredIssues(releaseVersion, workspace, jiraContext, fixVersion, prerelease, draft, releaseId, actionContext, tagPrefix);
+        yield updateDeliveredIssues(releaseVersion, workspace, jiraContext, fixVersion, isMajorVersion, draft, releaseId, actionContext, tagPrefix);
     }
 });
 exports.onReleasePush = onReleasePush;
-const updateDeliveredIssues = (releaseVersion, workspace, jiraContext, version, prerelease, draft, releaseId, actionContext, tagPrefix) => __awaiter(void 0, void 0, void 0, function* () {
+const updateDeliveredIssues = (releaseVersion, workspace, jiraContext, version, isMajorVersion, draft, releaseId, actionContext, tagPrefix) => __awaiter(void 0, void 0, void 0, function* () {
     const { projectsKeys } = jiraContext;
     const issueKeys = yield gitRepo_1.extractJiraIssues(releaseVersion, projectsKeys.join(','), workspace, tagPrefix);
-    yield jiraUpdate_1.updateJira(jiraContext, issueKeys, version, prerelease);
-    if (!prerelease && releaseId) {
+    yield jiraUpdate_1.updateJira(jiraContext, issueKeys, version, isMajorVersion);
+    if (!isMajorVersion && releaseId) {
         const releaseNote = yield jiraUpdate_1.generateReleaseNote(version, jiraContext);
-        yield gitHubApi_1.updateRelease(actionContext, releaseId, releaseNote, version, `release/${releaseVersion}`, draft, prerelease);
+        yield gitHubApi_1.updateRelease(actionContext, releaseId, releaseNote, version, `release/${releaseVersion}`, draft);
     }
 });
 const onReleasePublished = (actionContext, jiraContext, tagPrefix) => __awaiter(void 0, void 0, void 0, function* () {
@@ -10281,9 +10284,19 @@ const onReleasePublished = (actionContext, jiraContext, tagPrefix) => __awaiter(
     core.info(`prerelease:${prerelease}`);
     core.info(`id:${id}`);
     core.info(`revision:${sha}`);
+    if (!target_commitish.includes('release')) {
+        throw new Error(`Tag is based on ${target_commitish} instead of a release branch. Workflow will not be executed.`);
+    }
+    if (prerelease) {
+        throw new Error(`The release published is a pre-release version. This workflow is for production release only. Workflow will not be executed.`);
+    }
+    if (!semantic_version_1.verifyNumbering(tag_name, tagPrefix)) {
+        throw new Error(`Tag ${tag_name} do not comply to correct versioning using prefix ${tagPrefix}. Workflow will not be executed.`);
+    }
+    const isMajorVersion = semantic_version_1.checkMajorVersion(tag_name);
     const releaseVersion = semantic_version_1.getVersionFromBranch(target_commitish, 'release');
     core.info(`Release version:${releaseVersion}`);
-    yield updateDeliveredIssues(releaseVersion, workspace, jiraContext, tag_name, prerelease, draft, id, actionContext, tagPrefix);
+    yield updateDeliveredIssues(releaseVersion, workspace, jiraContext, tag_name, isMajorVersion, draft, id, actionContext, tagPrefix);
     const previousPatchVersion = semantic_version_1.generatePreviousPatchVersion(tag_name);
     yield jiraUpdate_1.updateMasterTicket(jiraContext, tag_name, releaseVersion, sha, previousPatchVersion);
     yield createNextVersion(tag_name, target_commitish, actionContext, jiraContext);
@@ -10415,7 +10428,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.generateReleaseNote = exports.createMasterTicket = exports.updateMasterTicket = exports.createIfNotExistsJiraVersion = exports.getMasterTicketKey = exports.filterIssuesWithoutCurrentFixVersion = exports.updateJira = void 0;
 const jiraApi_1 = __nccwpck_require__(8286);
 const core = __importStar(__nccwpck_require__(2186));
-const updateJira = (context, issueKeys, fixVersion, prerelease) => __awaiter(void 0, void 0, void 0, function* () {
+const updateJira = (context, issueKeys, fixVersion, isMajorVersion) => __awaiter(void 0, void 0, void 0, function* () {
     if (!issueKeys || issueKeys.length === 0) {
         return;
     }
@@ -10471,7 +10484,7 @@ const updateJira = (context, issueKeys, fixVersion, prerelease) => __awaiter(voi
             }
         }
         yield jiraApi_1.updateIssue(context, issueKey, fixVersionUpdates[index]);
-        if (!prerelease &&
+        if (!isMajorVersion &&
             masterTicketIssueKey &&
             !linkedIssueKeys.find(i => i === issueKey)) {
             core.info(`start linkIssueToMasterTicket:[issue:${issueKey},masterTicketIssueKey:${masterTicketIssueKey}]`);
@@ -11043,10 +11056,13 @@ function run() {
                 core.info(`releasePush finished`);
             }
             else if (process.env.GITHUB_EVENT_NAME === 'release' &&
-                github.context.payload.action === 'published') {
+                github.context.payload.action === 'released') {
                 core.info(`start onReleasePublished`);
                 yield eventHandler_1.onReleasePublished(gitHubContext, jiraContext, tagPrefix);
                 core.info(`releasePublished finished`);
+            }
+            else {
+                core.error(`Trigger event type not supported. Can only react on push or release event with type released.`);
             }
         }
         catch (error) {
@@ -11066,7 +11082,7 @@ run();
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getVersionFromBranch = exports.generatePreviousPatchVersion = exports.generateNextMinorVersion = exports.generateNextPatchVersion = void 0;
+exports.checkMajorVersion = exports.verifyNumbering = exports.getVersionFromBranch = exports.generatePreviousPatchVersion = exports.generateNextMinorVersion = exports.generateNextPatchVersion = void 0;
 const MinorVersionIndex = 1;
 const PatchVersionIndex = 2;
 const generateNextPatchVersion = (versionNumber) => {
@@ -11103,6 +11119,13 @@ const getVersionFromBranch = (branchName, branchType) => {
     return branchName;
 };
 exports.getVersionFromBranch = getVersionFromBranch;
+const verifyNumbering = (tagName, tagPrefix) => {
+    const regex = `^${tagPrefix}[0-9]{1,2}.[0-9]{1,2}.[0-9]{1,4}$`;
+    return !!tagName.match(new RegExp(regex, 'g'));
+};
+exports.verifyNumbering = verifyNumbering;
+const checkMajorVersion = (tagName) => tagName.endsWith('.0');
+exports.checkMajorVersion = checkMajorVersion;
 
 
 /***/ }),

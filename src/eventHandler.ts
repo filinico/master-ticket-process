@@ -6,10 +6,12 @@ import {
   updateRelease
 } from './api/gitHubApi'
 import {
+  checkMajorVersion,
   generateNextMinorVersion,
   generateNextPatchVersion,
   generatePreviousPatchVersion,
-  getVersionFromBranch
+  getVersionFromBranch,
+  verifyNumbering
 } from './semantic-version'
 import {
   createIfNotExistsJiraVersion,
@@ -31,6 +33,11 @@ export const onReleasePush = async (
   const {
     payload: {ref}
   } = context
+  if (!(ref as string).includes('release')) {
+    throw new Error(
+      `The workflow is triggered on ${ref} instead of a release branch. Workflow will not be executed.`
+    )
+  }
   const releaseVersion = getVersionFromBranch(ref, 'release')
   core.info(`Release version:${releaseVersion}`)
   const lastTagName = await getLastTagName(
@@ -39,35 +46,36 @@ export const onReleasePush = async (
   )
   core.info(`lastTagName:${lastTagName}`)
   let fixVersion: string | null = null
-  let prerelease = false
+  let isMajorVersion = true
   let draft = true
-  let releaseId
+  let releaseId = null
   if (!lastTagName) {
-    const gitHubMajorVersion = await getReleaseByTagName(
-      actionContext,
-      `${tagPrefix}${releaseVersion}.0`
+    throw new Error(
+      `The pre-release tag is missing for the ${ref}. Workflow will not be executed. Please tag the release branch and restart the workflow.`
     )
-    if (gitHubMajorVersion) {
-      fixVersion = gitHubMajorVersion.tagName
-      prerelease = gitHubMajorVersion.isPrerelease
-      draft = gitHubMajorVersion.isDraft
-      releaseId = gitHubMajorVersion.databaseId
-    }
   } else if (lastTagName) {
-    const nextPatchVersion = generateNextPatchVersion(lastTagName)
-    let gitHubRelease = await getReleaseByTagName(
-      actionContext,
-      nextPatchVersion
-    )
-    if (!gitHubRelease) {
-      const nextMinorVersion = generateNextMinorVersion(lastTagName)
-      gitHubRelease = await getReleaseByTagName(actionContext, nextMinorVersion)
-    }
-    if (gitHubRelease) {
-      fixVersion = gitHubRelease.tagName
-      prerelease = gitHubRelease.isPrerelease
-      draft = gitHubRelease.isDraft
-      releaseId = gitHubRelease.databaseId
+    if (verifyNumbering(lastTagName, tagPrefix)) {
+      const nextPatchVersion = generateNextPatchVersion(lastTagName)
+      let gitHubRelease = await getReleaseByTagName(
+        actionContext,
+        nextPatchVersion
+      )
+      if (!gitHubRelease) {
+        const nextMinorVersion = generateNextMinorVersion(lastTagName)
+        gitHubRelease = await getReleaseByTagName(
+          actionContext,
+          nextMinorVersion
+        )
+      }
+      if (gitHubRelease) {
+        fixVersion = gitHubRelease.tagName
+        isMajorVersion = false
+        draft = gitHubRelease.isDraft
+        releaseId = gitHubRelease.databaseId
+      }
+    } else if (lastTagName.includes('0.0')) {
+      fixVersion = `${tagPrefix}${releaseVersion}.0`
+      isMajorVersion = true
     }
   }
   core.info(`fixVersion:${fixVersion}`)
@@ -77,7 +85,7 @@ export const onReleasePush = async (
       workspace,
       jiraContext,
       fixVersion,
-      prerelease,
+      isMajorVersion,
       draft,
       releaseId,
       actionContext,
@@ -91,9 +99,9 @@ const updateDeliveredIssues = async (
   workspace: string,
   jiraContext: JiraContext,
   version: string,
-  prerelease: boolean,
+  isMajorVersion: boolean,
   draft: boolean,
-  releaseId: number | undefined,
+  releaseId: number | undefined | null,
   actionContext: GitHubContext,
   tagPrefix: string
 ): Promise<void> => {
@@ -104,8 +112,8 @@ const updateDeliveredIssues = async (
     workspace,
     tagPrefix
   )
-  await updateJira(jiraContext, issueKeys, version, prerelease)
-  if (!prerelease && releaseId) {
+  await updateJira(jiraContext, issueKeys, version, isMajorVersion)
+  if (!isMajorVersion && releaseId) {
     const releaseNote = await generateReleaseNote(version, jiraContext)
     await updateRelease(
       actionContext,
@@ -113,8 +121,7 @@ const updateDeliveredIssues = async (
       releaseNote,
       version,
       `release/${releaseVersion}`,
-      draft,
-      prerelease
+      draft
     )
   }
 }
@@ -136,6 +143,22 @@ export const onReleasePublished = async (
   core.info(`prerelease:${prerelease}`)
   core.info(`id:${id}`)
   core.info(`revision:${sha}`)
+  if (!(target_commitish as string).includes('release')) {
+    throw new Error(
+      `Tag is based on ${target_commitish} instead of a release branch. Workflow will not be executed.`
+    )
+  }
+  if (prerelease) {
+    throw new Error(
+      `The release published is a pre-release version. This workflow is for production release only. Workflow will not be executed.`
+    )
+  }
+  if (!verifyNumbering(tag_name, tagPrefix)) {
+    throw new Error(
+      `Tag ${tag_name} do not comply to correct versioning using prefix ${tagPrefix}. Workflow will not be executed.`
+    )
+  }
+  const isMajorVersion = checkMajorVersion(tag_name)
   const releaseVersion = getVersionFromBranch(target_commitish, 'release')
   core.info(`Release version:${releaseVersion}`)
   await updateDeliveredIssues(
@@ -143,7 +166,7 @@ export const onReleasePublished = async (
     workspace,
     jiraContext,
     tag_name,
-    prerelease,
+    isMajorVersion,
     draft,
     id,
     actionContext,
