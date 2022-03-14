@@ -1,8 +1,8 @@
 {
-  "name": "typescript-action",
-  "version": "0.0.0",
+  "name": "rm-ticket-process",
+  "version": "0.1.0",
   "private": true,
-  "description": "TypeScript template action",
+  "description": "RM ticket process",
   "main": "src/main.ts",
   "scripts": {
     "format": "prettier --write **/*.ts",
@@ -14,14 +14,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/actions/typescript-action.git"
+    "url": "git+https://github.com/coupa/treasury_rm-ticket-process.git"
   },
   "keywords": [
     "actions",
     "node",
     "setup"
   ],
-  "author": "",
+  "author": "Nicolas Filippelli",
   "license": "MIT",
   "dependencies": {
     "@actions/core": "^1.2.7",
