@@ -1,105 +1,86 @@
-<p align="center">
-  <a href="https://github.com/actions/typescript-action/actions"><img alt="typescript-action status" src="https://github.com/actions/typescript-action/workflows/build-test/badge.svg"></a>
-</p>
+# RM ticket process GitHub Action
 
-# Create a JavaScript Action using TypeScript
+**Name:** `coupa/treasury_rm-ticket-process`
 
-Use this template to bootstrap the creation of a TypeScript action.:rocket:
+This GitHub action automate the release steps that are required by the RM certification board. :rocket:
 
-This template includes compilation support, tests, a validation workflow, publishing, and versioning guidance.  
+- Transfers/adds all required information of RM ticket from GitHub to Jira, from the published GitHub release to the corresponding RM ticket based on Jira release.
+(tag name -> Jira release) Including table as RM ticket description, commonly used by the other Coupa Apps.
+- Creates the next RM ticket with minor version next increment
+- Creates the next GitHub release with minor version next increment
+- Creates Jira releases on configured Jira projects for the next minor version increment. (support multiple Jira projects)
+- Extracts Jira issue keys from git log
+- Updates fix version of extracted Jira issues. Supports subtasks by updating corresponding parent story instead of subtask.
+- Links extracted Jira issues to RM ticket. Supports subtasks by linking corresponding parent story instead of subtask.
+- Generates release notes on GitHub release description
 
-If you are new, there's also a simpler introduction.  See the [Hello World JavaScript Action](https://github.com/actions/hello-world-javascript-action)
+The triggers to launch the action are the following:
 
-## Create an action from this template
+- publish the **GitHub release** corresponding to the version that have to be released.
+  - for the minor versions, the GitHub release will be automatically created after each publish.
+  - for the major version, the GitHub release can be manually created or automated by the `coupa/treasury_create-major-release-version`. The version is extracted from the tag name.
+- push on release branches
 
-Click the `Use this Template` and provide the new repo details for your action
+The prefix of the tag is configurable as described below.
 
-## Code in Main
+If you are interested in using this kind of action to automate your release process, we could easily adapt the configuration and see if it could fit your needs.
 
-> First, you'll need to have a reasonably modern version of `node` handy. This won't work with versions older than 9, for instance.
+## Usage instructions
 
-Install the dependencies  
-```bash
-$ npm install
-```
+This action can only be used by repositories from the Coupa organization.
 
-Build the typescript and package it for distribution
-```bash
-$ npm run build && npm run package
-```
+Create a workflow file (e.g. `.github/workflows/rm-ticket-process.yml`) that contains a step that `uses: coupa/treasury_rm-ticket-process@v1.0`
+and is triggered on `released` event of GitHub release (prerelease is excluded), and push on release branches.
 
-Run the tests :heavy_check_mark:  
-```bash
-$ npm test
-
- PASS  ./index.test.js
-  ✓ throws invalid number (3ms)
-  ✓ wait 500 ms (504ms)
-  ✓ test runs (95ms)
-
-...
-```
-
-## Change action.yml
-
-The action.yml contains defines the inputs and output for your action.
-
-Update the action.yml with your name, description, inputs and outputs for your action.
-
-See the [documentation](https://help.github.com/en/articles/metadata-syntax-for-github-actions)
-
-## Change the Code
-
-Most toolkit and CI/CD operations involve async operations so the action is run in an async function.
-
-```javascript
-import * as core from '@actions/core';
-...
-
-async function run() {
-  try { 
-      ...
-  } 
-  catch (error) {
-    core.setFailed(error.message);
-  }
-}
-
-run()
-```
-
-See the [toolkit documentation](https://github.com/actions/toolkit/blob/master/README.md#packages) for the various packages.
-
-## Publish to a distribution branch
-
-Actions are run from GitHub repos so we will checkin the packed dist folder. 
-
-Then run [ncc](https://github.com/zeit/ncc) and push the results:
-```bash
-$ npm run package
-$ git add dist
-$ git commit -a -m "prod dependencies"
-$ git push origin releases/v1
-```
-
-Note: We recommend using the `--license` option for ncc, which will create a license file for all of the production node modules used in your project.
-
-Your action is now published! :rocket: 
-
-See the [versioning documentation](https://github.com/actions/toolkit/blob/master/docs/action-versioning.md)
-
-## Validate
-
-You can now validate the action by referencing `./` in a workflow in your repo (see [test.yml](.github/workflows/test.yml))
+Here's an example workflow file:
 
 ```yaml
-uses: ./
-with:
-  milliseconds: 1000
+name: RM ticket process
+on:
+  push:
+    branches:
+      - 'release/**'
+  release:
+    types: [released]
+
+jobs:
+  rm-ticket-process:
+    runs-on: ubuntu-latest
+    name: master ticket process
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Set up Node
+        uses: actions/setup-node@v1
+        with:
+          node-version: 12
+      - name: Run master ticket process
+        uses: coupa/treasury_rm-ticket-process@v1.0
+        with:
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          JIRA_SUBDOMAIN: "coupadev"
+          JIRA_USER: "service.account@coupa.com"
+          JIRA_TOKEN: ${{secrets.JIRA_TOKEN}}
+          JIRA_PROJECTS_IDS: "12345,123456"
+          JIRA_PROJECTS_KEYS: "TM,JZ"
+          JIRA_MASTER_PROJECT_ID: "987654"
+          JIRA_MASTER_PROJECT_KEY: "RM"
+          JIRA_MASTER_ISSUE_TYPE: "13802"
+          TAG_PREFIX: "ct"
 ```
 
-See the [actions tab](https://github.com/actions/typescript-action/actions) for runs of this action! :rocket:
+**Important:**
+- A service account is required for the automation. It needs to have write access to your GitHub repository, Jira projects and PMO Confluence space.
+  It must be configured with `JIRA_USER`.
+  It requires one token for GitHub and one token for Jira. These tokens `GITHUB_TOKEN` and `JIRA_TOKEN` must be added as secrets on your repository.
 
-## Usage:
+You can retrieve the required `JIRA_PROJECTS_IDS` and `JIRA_MASTER_PROJECT_ID` using the Jira REST API.
+Here's an example:
 
-After testing you can [create a v1 tag](https://github.com/actions/toolkit/blob/master/docs/action-versioning.md) to reference the stable and latest V1 action
+Get Jira project ID using the project key ($projectKey).
+```bash
+curl --request GET \
+  --url 'https://coupadev.atlassian.net/rest/api/3/project/$projectKey?expand=issueTypes&properties=key,id,name' \
+  --user '$user:$token' \
+  --header 'Accept: application/json'
+```
