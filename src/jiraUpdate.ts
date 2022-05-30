@@ -218,7 +218,9 @@ export const updateMasterTicket = async (
   version: string,
   releaseVersion: string,
   revision: string,
-  previousPatchVersion: string
+  previousPatchVersion: string,
+  fileCount: number,
+  commitCount: number
 ): Promise<void> => {
   const masterTicketKey = await getMasterTicketKey(jiraContext, version)
   if (masterTicketKey) {
@@ -237,6 +239,21 @@ export const updateMasterTicket = async (
         customfield_23599: [
           {
             set: revision
+          }
+        ],
+        customfield_23991: [
+          {
+            set: `https://github.com/coupa/treasury_tm5/compare/${previousPatchVersion}...${version}`
+          }
+        ],
+        customfield_23983: [
+          {
+            set: commitCount
+          }
+        ],
+        customfield_23984: [
+          {
+            set: fileCount
           }
         ],
         description: [

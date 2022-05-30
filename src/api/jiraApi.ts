@@ -136,6 +136,21 @@ interface JiraIssueUpdate {
       set: string
     }
   ]
+  customfield_23991?: [
+    {
+      set: string
+    }
+  ]
+  customfield_23983?: [
+    {
+      set: number
+    }
+  ]
+  customfield_23984?: [
+    {
+      set: number
+    }
+  ]
   description?: [
     {
       set: {

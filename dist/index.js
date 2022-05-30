@@ -9925,7 +9925,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.updateRelease = exports.createRelease = exports.getReleaseByTagName = exports.getLastTagName = void 0;
+exports.compareTags = exports.updateRelease = exports.createRelease = exports.getReleaseByTagName = exports.getLastTagName = void 0;
 const getLastTagNameQuery = `
 query lastTagQuery($owner: String!, $repo: String!, $releaseVersion: String!) {
   repository(owner:$owner, name: $repo) {
@@ -10006,6 +10006,21 @@ const updateRelease = (actionContext, releaseId, releaseNote, tagName, targetBra
     });
 });
 exports.updateRelease = updateRelease;
+const compareTags = (actionContext, previousTag, currentTag) => __awaiter(void 0, void 0, void 0, function* () {
+    const { octokit, context } = actionContext;
+    const { data: { total_commits, files } } = yield octokit.repos.compareCommits({
+        owner: context.repo.owner,
+        repo: context.repo.repo,
+        base: previousTag,
+        head: currentTag,
+        per_page: 1
+    });
+    return {
+        commitCount: total_commits,
+        fileCount: files ? files.length : 0
+    };
+});
+exports.compareTags = compareTags;
 
 
 /***/ }),
@@ -10298,7 +10313,8 @@ const onReleasePublished = (actionContext, jiraContext, tagPrefix) => __awaiter(
     core.info(`Release version:${releaseVersion}`);
     yield updateDeliveredIssues(releaseVersion, workspace, jiraContext, tag_name, isMajorVersion, draft, id, actionContext, tagPrefix);
     const previousPatchVersion = semantic_version_1.generatePreviousPatchVersion(tag_name);
-    yield jiraUpdate_1.updateMasterTicket(jiraContext, tag_name, releaseVersion, sha, previousPatchVersion);
+    const { commitCount, fileCount } = yield gitHubApi_1.compareTags(actionContext, previousPatchVersion, tag_name);
+    yield jiraUpdate_1.updateMasterTicket(jiraContext, tag_name, releaseVersion, sha, previousPatchVersion, fileCount, commitCount);
     yield createNextVersion(tag_name, target_commitish, actionContext, jiraContext);
 });
 exports.onReleasePublished = onReleasePublished;
@@ -10568,7 +10584,7 @@ const createIfNotExistsJiraVersion = (context, fixVersion, projectId, projectKey
     return version;
 });
 exports.createIfNotExistsJiraVersion = createIfNotExistsJiraVersion;
-const updateMasterTicket = (jiraContext, version, releaseVersion, revision, previousPatchVersion) => __awaiter(void 0, void 0, void 0, function* () {
+const updateMasterTicket = (jiraContext, version, releaseVersion, revision, previousPatchVersion, fileCount, commitCount) => __awaiter(void 0, void 0, void 0, function* () {
     const masterTicketKey = yield exports.getMasterTicketKey(jiraContext, version);
     if (masterTicketKey) {
         yield jiraApi_1.updateIssue(jiraContext, masterTicketKey, {
@@ -10586,6 +10602,21 @@ const updateMasterTicket = (jiraContext, version, releaseVersion, revision, prev
                 customfield_23599: [
                     {
                         set: revision
+                    }
+                ],
+                customfield_23991: [
+                    {
+                        set: `https://github.com/coupa/treasury_tm5/compare/${previousPatchVersion}...${version}`
+                    }
+                ],
+                customfield_23983: [
+                    {
+                        set: commitCount
+                    }
+                ],
+                customfield_23984: [
+                    {
+                        set: fileCount
                     }
                 ],
                 description: [
