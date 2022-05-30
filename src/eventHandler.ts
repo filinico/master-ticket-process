@@ -1,4 +1,5 @@
 import {
+  compareTags,
   createRelease,
   getLastTagName,
   getReleaseByTagName,
@@ -174,12 +175,19 @@ export const onReleasePublished = async (
   )
 
   const previousPatchVersion = generatePreviousPatchVersion(tag_name)
+  const {commitCount, fileCount} = await compareTags(
+    actionContext,
+    previousPatchVersion,
+    tag_name
+  )
   await updateMasterTicket(
     jiraContext,
     tag_name,
     releaseVersion,
     sha,
-    previousPatchVersion
+    previousPatchVersion,
+    fileCount,
+    commitCount
   )
 
   await createNextVersion(

@@ -140,3 +140,29 @@ export const updateRelease = async (
     prerelease: false
   })
 }
+
+interface CommitsComparison {
+  fileCount: number
+  commitCount: number
+}
+
+export const compareTags = async (
+  actionContext: GitHubContext,
+  previousTag: string,
+  currentTag: string
+): Promise<CommitsComparison> => {
+  const {octokit, context} = actionContext
+  const {
+    data: {total_commits, files}
+  } = await octokit.repos.compareCommits({
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+    base: previousTag,
+    head: currentTag,
+    per_page: 1
+  })
+  return {
+    commitCount: total_commits,
+    fileCount: files ? files.length : 0
+  }
+}
