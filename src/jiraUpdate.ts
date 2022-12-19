@@ -75,7 +75,7 @@ export const updateJira = async (
     )
     const fixVersionUpdate: JiraIssue = {
       update: {
-        fixVersions: [
+        customfield_24144: [
           {
             add: {id: version.id}
           }
@@ -124,7 +124,7 @@ export const filterIssuesWithoutCurrentFixVersion = async (
     const groupedIssues = currentBatch.join(',')
     const searchIssuesWithoutCurrentFixVersion = `project in (${projectsKeys.join(
       ','
-    )}) AND (fixVersion not in (${fixVersion}) OR fixVersion is EMPTY) AND issuekey in (${groupedIssues})`
+    )}) AND ("Release Version(s)[Version Picker (multiple versions)]" not in (${fixVersion}) OR "Release Version(s)[Version Picker (multiple versions)]" is EMPTY) AND issuekey in (${groupedIssues})`
     core.info(`searchIssuesQuery:[${searchIssuesWithoutCurrentFixVersion}]`)
     const currentResult = await searchIssues(
       context,
@@ -147,7 +147,7 @@ const listIssuesSummaryWithFixVersion = async (
   const {projectsKeys} = context
   const issuesWithFixVersion = `project in (${projectsKeys.join(
     ','
-  )}) AND fixVersion in (${fixVersion})`
+  )}) AND "Release Version(s)[Version Picker (multiple versions)]" in (${fixVersion})`
   core.info(`searchIssuesQuery:[${issuesWithFixVersion}]`)
   return await searchIssues(context, issuesWithFixVersion, ['summary'])
 }
@@ -157,7 +157,7 @@ export const getMasterTicketKey = async (
   fixVersion: string
 ): Promise<string | null> => {
   const {masterProjectKey} = context
-  const masterTicketQuery = `project = ${masterProjectKey} AND fixVersion in (${fixVersion})`
+  const masterTicketQuery = `project = ${masterProjectKey} AND "Release Version(s)[Version Picker (multiple versions)]" in (${fixVersion})`
   core.info(`masterTicketQuery:[${masterTicketQuery}]`)
   const issues = await searchIssues(context, masterTicketQuery, ['summary'])
   let masterTicketIssueKey: string | null = null
@@ -633,9 +633,11 @@ export const createMasterTicket = async (
         customfield_21603: {
           value: 'Treasury Management (CTM)'
         },
-        customfield_12803: {
-          id: masterTicketVersionId
-        }
+        customfield_24144: [
+          {
+            id: masterTicketVersionId
+          }
+        ]
       }
     })
   }

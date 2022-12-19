@@ -117,7 +117,9 @@ interface JiraFields {
   customfield_23713?: JiraCustomField
   customfield_23604?: JiraCustomField
   customfield_23599?: JiraCustomField
-  customfield_12803?: JiraCustomField
+  customfield_24144?: {
+    id: string
+  }[]
 }
 
 interface JiraIssueUpdate {
@@ -160,7 +162,7 @@ interface JiraIssueUpdate {
       }
     }
   ]
-  fixVersions?: [
+  customfield_24144?: [
     {
       add: {id?: string}
     }
