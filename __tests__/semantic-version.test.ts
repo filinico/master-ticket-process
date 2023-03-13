@@ -39,24 +39,25 @@ test('get version from branch', async () => {
 })
 
 test('comply to version numbering', async () => {
-  expect(verifyNumbering('v1.0.10', 'v')).toBe(true)
-  expect(verifyNumbering('v35.56.100', 'v')).toBe(true)
-  expect(verifyNumbering('v32.0.1', 'v')).toBe(true)
-  expect(verifyNumbering('v33.0.10', 'v')).toBe(true)
-  expect(verifyNumbering('v66.6.6666', 'v')).toBe(true)
+  expect(verifyNumbering('v1.0.10', 'v', '1.0')).toBe(true)
+  expect(verifyNumbering('v35.56.100', 'v', '35.56')).toBe(true)
+  expect(verifyNumbering('v32.0.1', 'v', '32.0')).toBe(true)
+  expect(verifyNumbering('v33.0.10', 'v', '33.0')).toBe(true)
+  expect(verifyNumbering('v66.6.6666', 'v', '66.6')).toBe(true)
 })
 
 test('is a major version', async () => {
-  expect(verifyNumbering('v10.0.0', 'v')).toBe(true)
+  expect(verifyNumbering('v10.0.0', 'v', '10.0')).toBe(true)
   expect(checkMajorVersion('v10.0.0')).toBe(true)
 })
 
 test("don't comply to version numbering", async () => {
-  expect(verifyNumbering('pr1.0.10', 'v')).toBe(false)
-  expect(verifyNumbering('v359.56.100', 'v')).toBe(false)
-  expect(verifyNumbering('v32.0.0-alpha', 'v')).toBe(false)
-  expect(verifyNumbering('v33.100.10', 'v')).toBe(false)
-  expect(verifyNumbering('v66.6.66669', 'v')).toBe(false)
-  expect(verifyNumbering('5.66.6.66669', 'v')).toBe(false)
-  expect(verifyNumbering('566.6.66669', 'v')).toBe(false)
+  expect(verifyNumbering('pr1.0.10', 'v', '1.0')).toBe(false)
+  expect(verifyNumbering('v359.56.100', 'v', '359.57')).toBe(false)
+  expect(verifyNumbering('v32.0.0-alpha', 'v', '32.0')).toBe(false)
+  expect(verifyNumbering('v33.100.10', 'v', '33.101')).toBe(false)
+  expect(verifyNumbering('v66.6.66669', 'v', '66.6')).toBe(false)
+  expect(verifyNumbering('5.66.6.66669', 'v', '66.6')).toBe(false)
+  expect(verifyNumbering('566.6.66669', 'v', '566.6')).toBe(false)
+  expect(verifyNumbering('v32.0.1', 'v', '33.0')).toBe(false)
 })

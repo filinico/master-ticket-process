@@ -14091,10 +14091,29 @@ function wrappy (fn, cb) {
 /***/ }),
 
 /***/ 793:
-/***/ (function(__unused_webpack_module, exports) {
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -14106,33 +14125,109 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.compareTags = exports.updateRelease = exports.createRelease = exports.getReleaseByTagName = exports.getLastTagName = void 0;
+const semantic_version_1 = __nccwpck_require__(6052);
+const core = __importStar(__nccwpck_require__(2186));
 const getLastTagNameQuery = `
-query lastTagQuery($owner: String!, $repo: String!, $releaseVersion: String!) {
+query lastTagQuery($owner: String!, $repo: String!, $tagPrefix: String!) {
   repository(owner:$owner, name: $repo) {
-    refs(refPrefix: "refs/tags/", first: 1, orderBy: {field: TAG_COMMIT_DATE, direction: DESC}, query: $releaseVersion) {
+    refs(refPrefix: "refs/tags/", first: 10, orderBy: {field: TAG_COMMIT_DATE, direction: DESC}, query: $tagPrefix) {
       nodes {
         name
+      }
+      pageInfo {
+        endCursor
+        hasNextPage
       }
     }
   }
 }
   `;
-const getLastTagName = (actionContext, releaseVersion) => __awaiter(void 0, void 0, void 0, function* () {
+const getLastTagQueryWithPagination = `
+query lastTagQueryWithPagination($owner: String!, $repo: String!, $tagPrefix: String!, $lastCursor: String!) {
+  repository(owner: $owner, name: $repo) {
+    refs(
+      refPrefix: "refs/tags/"
+      first: 10
+      orderBy: {field: TAG_COMMIT_DATE, direction: DESC}
+      query: $tagPrefix
+      after: $lastCursor
+    ) {
+      nodes {
+        name
+      }
+      pageInfo {
+        endCursor
+        hasNextPage
+      }
+    }
+  }
+}
+  `;
+const getLastTagName = (actionContext, tagPrefix, releaseVersion) => __awaiter(void 0, void 0, void 0, function* () {
     const { octokit, context } = actionContext;
+    core.info(`getLastTagName query`);
     const lastTagResponse = yield octokit.graphql(getLastTagNameQuery, {
-        releaseVersion,
+        tagPrefix: `${tagPrefix}${releaseVersion}`,
         owner: context.repo.owner,
         repo: context.repo.repo
     });
-    const { repository: { refs: { nodes } } } = lastTagResponse;
+    const { repository: { refs: { nodes, pageInfo: { endCursor, hasNextPage } } } } = lastTagResponse;
+    let lastTagName;
     if (nodes.length > 0) {
-        return nodes[0].name;
+        lastTagName = getLastTagNameVerified(tagPrefix, releaseVersion, nodes);
+        if (lastTagName) {
+            return lastTagName;
+        }
+        core.info(`tag not found, continue search`);
+        let nextPageToContinue = hasNextPage;
+        let lastCursor = endCursor;
+        while (nextPageToContinue) {
+            const lastTagNameFromNextPage = yield getLastTagNameFromNextPage(actionContext, tagPrefix, releaseVersion, lastCursor);
+            if (lastTagNameFromNextPage.lastTagName) {
+                return lastTagNameFromNextPage.lastTagName;
+            }
+            else {
+                core.info(`tag not found, continue search`);
+                nextPageToContinue = lastTagNameFromNextPage.hasNextPage;
+                lastCursor = lastTagNameFromNextPage.endCursor;
+            }
+        }
     }
-    else {
-        return null;
-    }
+    core.info(`no tag found`);
+    return null;
 });
 exports.getLastTagName = getLastTagName;
+const getLastTagNameFromNextPage = (actionContext, tagPrefix, releaseVersion, lastCursor) => __awaiter(void 0, void 0, void 0, function* () {
+    const { octokit, context } = actionContext;
+    core.info(`lastTagQueryWithPagination ${lastCursor}`);
+    const lastTagPaginationResponse = yield octokit.graphql(getLastTagQueryWithPagination, {
+        tagPrefix: `${tagPrefix}${releaseVersion}`,
+        owner: context.repo.owner,
+        repo: context.repo.repo,
+        lastCursor
+    });
+    const { repository: { refs: { nodes, pageInfo: { endCursor, hasNextPage } } } } = lastTagPaginationResponse;
+    const lastTagName = getLastTagNameVerified(tagPrefix, releaseVersion, nodes);
+    return {
+        lastTagName,
+        endCursor,
+        hasNextPage
+    };
+});
+const getLastTagNameVerified = (tagPrefix, releaseVersion, nodes) => {
+    if (nodes.length > 0) {
+        let lastTagName;
+        for (const item of nodes) {
+            lastTagName = item.name;
+            core.info(`check tag ${lastTagName}`);
+            if (semantic_version_1.verifyNumbering(lastTagName, tagPrefix, releaseVersion)) {
+                core.info(`found tag ${lastTagName}`);
+                return lastTagName;
+            }
+        }
+    }
+    return null;
+};
 const getReleaseByTagNameQuery = `
 query getReleaseByTagName($owner: String!, $repo: String!, $tagName: String!) {
   repository(owner:$owner, name: $repo) {
@@ -14427,33 +14522,24 @@ const onReleasePush = (actionContext, jiraContext, tagPrefix) => __awaiter(void 
     }
     const releaseVersion = semantic_version_1.getVersionFromBranch(ref, 'release');
     core.info(`Release version:${releaseVersion}`);
-    const lastTagName = yield gitHubApi_1.getLastTagName(actionContext, `${tagPrefix}${releaseVersion}`);
-    core.info(`lastTagName:${lastTagName}`);
-    let fixVersion = null;
+    const lastTagName = yield gitHubApi_1.getLastTagName(actionContext, tagPrefix, releaseVersion);
+    let fixVersion = `${tagPrefix}${releaseVersion}.0`;
     let isMajorVersion = true;
     let draft = true;
     let releaseId = null;
-    if (!lastTagName) {
-        throw new Error(`The pre-release tag is missing for the ${ref}. Workflow will not be executed. Please tag the release branch and restart the workflow.`);
-    }
-    else if (lastTagName) {
-        if (semantic_version_1.verifyNumbering(lastTagName, tagPrefix)) {
-            const nextPatchVersion = semantic_version_1.generateNextPatchVersion(lastTagName);
-            let gitHubRelease = yield gitHubApi_1.getReleaseByTagName(actionContext, nextPatchVersion);
-            if (!gitHubRelease) {
-                const nextMinorVersion = semantic_version_1.generateNextMinorVersion(lastTagName);
-                gitHubRelease = yield gitHubApi_1.getReleaseByTagName(actionContext, nextMinorVersion);
-            }
-            if (gitHubRelease) {
-                fixVersion = gitHubRelease.tagName;
-                isMajorVersion = false;
-                draft = gitHubRelease.isDraft;
-                releaseId = gitHubRelease.databaseId;
-            }
+    if (lastTagName) {
+        core.info(`lastTagName:${lastTagName}`);
+        const nextPatchVersion = semantic_version_1.generateNextPatchVersion(lastTagName);
+        let gitHubRelease = yield gitHubApi_1.getReleaseByTagName(actionContext, nextPatchVersion);
+        if (!gitHubRelease) {
+            const nextMinorVersion = semantic_version_1.generateNextMinorVersion(lastTagName);
+            gitHubRelease = yield gitHubApi_1.getReleaseByTagName(actionContext, nextMinorVersion);
         }
-        else if (lastTagName.includes('0.0')) {
-            fixVersion = `${tagPrefix}${releaseVersion}.0`;
-            isMajorVersion = true;
+        if (gitHubRelease) {
+            fixVersion = gitHubRelease.tagName;
+            isMajorVersion = false;
+            draft = gitHubRelease.isDraft;
+            releaseId = gitHubRelease.databaseId;
         }
     }
     core.info(`fixVersion:${fixVersion}`);
@@ -14464,7 +14550,11 @@ const onReleasePush = (actionContext, jiraContext, tagPrefix) => __awaiter(void 
 exports.onReleasePush = onReleasePush;
 const updateDeliveredIssues = (releaseVersion, workspace, jiraContext, version, isMajorVersion, draft, releaseId, actionContext, tagPrefix) => __awaiter(void 0, void 0, void 0, function* () {
     const { projectsKeys } = jiraContext;
-    const issueKeys = yield gitRepo_1.extractJiraIssues(releaseVersion, projectsKeys.join(','), workspace, tagPrefix);
+    let previousVersion = releaseVersion;
+    if (isMajorVersion) {
+        previousVersion = semantic_version_1.getPreviousVersion(releaseVersion);
+    }
+    const issueKeys = yield gitRepo_1.extractJiraIssues(releaseVersion, projectsKeys.join(','), workspace, tagPrefix, previousVersion);
     yield jiraUpdate_1.updateJira(jiraContext, issueKeys, version, isMajorVersion);
     if (!isMajorVersion && releaseId) {
         const releaseNote = yield jiraUpdate_1.generateReleaseNote(version, jiraContext);
@@ -14485,15 +14575,30 @@ const onReleasePublished = (actionContext, jiraContext, tagPrefix) => __awaiter(
     if (prerelease) {
         throw new Error(`The release published is a pre-release version. This workflow is for production release only. Workflow will not be executed.`);
     }
-    if (!semantic_version_1.verifyNumbering(tag_name, tagPrefix)) {
+    const releaseVersion = semantic_version_1.getVersionFromBranch(target_commitish, 'release');
+    if (!semantic_version_1.verifyNumbering(tag_name, tagPrefix, releaseVersion)) {
         throw new Error(`Tag ${tag_name} do not comply to correct versioning using prefix ${tagPrefix}. Workflow will not be executed.`);
     }
     const isMajorVersion = semantic_version_1.checkMajorVersion(tag_name);
-    const releaseVersion = semantic_version_1.getVersionFromBranch(target_commitish, 'release');
     core.info(`Release version:${releaseVersion}`);
     yield updateDeliveredIssues(releaseVersion, workspace, jiraContext, tag_name, isMajorVersion, draft, id, actionContext, tagPrefix);
-    const previousPatchVersion = semantic_version_1.generatePreviousPatchVersion(tag_name);
-    const { commitCount, fileCount } = yield gitHubApi_1.compareTags(actionContext, previousPatchVersion, tag_name);
+    let previousPatchVersion;
+    if (isMajorVersion) {
+        previousPatchVersion = yield gitHubApi_1.getLastTagName(actionContext, tagPrefix, semantic_version_1.getPreviousVersion(releaseVersion));
+    }
+    else {
+        previousPatchVersion = semantic_version_1.generatePreviousPatchVersion(tag_name);
+    }
+    let commitCount = 0;
+    let fileCount = 0;
+    if (previousPatchVersion) {
+        const comparison = yield gitHubApi_1.compareTags(actionContext, previousPatchVersion, tag_name);
+        commitCount = comparison.commitCount;
+        fileCount = comparison.fileCount;
+    }
+    else {
+        previousPatchVersion = '';
+    }
     yield jiraUpdate_1.updateMasterTicket(jiraContext, tag_name, releaseVersion, sha, previousPatchVersion, fileCount, commitCount);
     yield createNextVersion(tag_name, target_commitish, actionContext, jiraContext);
 });
@@ -14559,10 +14664,10 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.convertScriptResults = exports.extractJiraIssues = void 0;
 const promisify_child_process_1 = __nccwpck_require__(2809);
 const core = __importStar(__nccwpck_require__(2186));
-const extractJiraIssues = (releaseVersion, projectsKeys, githubWorkspace, tagPrefix) => __awaiter(void 0, void 0, void 0, function* () {
+const extractJiraIssues = (releaseVersion, projectsKeys, githubWorkspace, tagPrefix, previousVersion) => __awaiter(void 0, void 0, void 0, function* () {
     yield promisify_child_process_1.exec(`chmod +x ${__dirname}/../extract-issues`);
     yield promisify_child_process_1.exec(`cd ${githubWorkspace}`);
-    const { stdout, stderr } = yield promisify_child_process_1.exec(`${__dirname}/../extract-issues -r ${releaseVersion} -p ${projectsKeys} -t ${tagPrefix}`);
+    const { stdout, stderr } = yield promisify_child_process_1.exec(`${__dirname}/../extract-issues -r ${releaseVersion} -p ${projectsKeys} -t ${tagPrefix} -v ${previousVersion}`);
     core.info(`issueKeysCommaSeparated:--${stdout}--`);
     if (stderr) {
         core.error(stderr.toString());
@@ -15295,7 +15400,7 @@ run();
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.checkMajorVersion = exports.verifyNumbering = exports.getVersionFromBranch = exports.generatePreviousPatchVersion = exports.generateNextMinorVersion = exports.generateNextPatchVersion = void 0;
+exports.getPreviousVersion = exports.checkMajorVersion = exports.verifyNumbering = exports.getVersionFromBranch = exports.generatePreviousPatchVersion = exports.generateNextMinorVersion = exports.generateNextPatchVersion = void 0;
 const MinorVersionIndex = 1;
 const PatchVersionIndex = 2;
 const generateNextPatchVersion = (versionNumber) => {
@@ -15332,13 +15437,19 @@ const getVersionFromBranch = (branchName, branchType) => {
     return branchName;
 };
 exports.getVersionFromBranch = getVersionFromBranch;
-const verifyNumbering = (tagName, tagPrefix) => {
-    const regex = `^${tagPrefix}[0-9]{1,2}.[0-9]{1,2}.[0-9]{1,4}$`;
+const verifyNumbering = (tagName, tagPrefix, releaseVersion) => {
+    const regex = `^${tagPrefix}${releaseVersion}.[0-9]{1,4}$`;
     return !!tagName.match(new RegExp(regex, 'g'));
 };
 exports.verifyNumbering = verifyNumbering;
 const checkMajorVersion = (tagName) => tagName.endsWith('.0');
 exports.checkMajorVersion = checkMajorVersion;
+const getPreviousVersion = (releaseVersion) => {
+    const currentVersionNumber = parseInt(releaseVersion);
+    const previousVersionNumber = currentVersionNumber - 1;
+    return `${previousVersionNumber}.0`;
+};
+exports.getPreviousVersion = getPreviousVersion;
 
 
 /***/ }),

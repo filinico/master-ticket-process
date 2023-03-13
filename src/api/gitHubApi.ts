@@ -1,5 +1,7 @@
 import * as github from '@actions/github'
 import {Context} from '@actions/github/lib/context'
+import {verifyNumbering} from '../semantic-version'
+import * as core from '@actions/core'
 type GitHub = ReturnType<typeof github.getOctokit>
 
 export interface GitHubContext {
@@ -23,11 +25,37 @@ interface LastTagResponse {
 }
 
 const getLastTagNameQuery = `
-query lastTagQuery($owner: String!, $repo: String!, $releaseVersion: String!) {
+query lastTagQuery($owner: String!, $repo: String!, $tagPrefix: String!) {
   repository(owner:$owner, name: $repo) {
-    refs(refPrefix: "refs/tags/", first: 1, orderBy: {field: TAG_COMMIT_DATE, direction: DESC}, query: $releaseVersion) {
+    refs(refPrefix: "refs/tags/", first: 10, orderBy: {field: TAG_COMMIT_DATE, direction: DESC}, query: $tagPrefix) {
       nodes {
         name
+      }
+      pageInfo {
+        endCursor
+        hasNextPage
+      }
+    }
+  }
+}
+  `
+
+const getLastTagQueryWithPagination = `
+query lastTagQueryWithPagination($owner: String!, $repo: String!, $tagPrefix: String!, $lastCursor: String!) {
+  repository(owner: $owner, name: $repo) {
+    refs(
+      refPrefix: "refs/tags/"
+      first: 10
+      orderBy: {field: TAG_COMMIT_DATE, direction: DESC}
+      query: $tagPrefix
+      after: $lastCursor
+    ) {
+      nodes {
+        name
+      }
+      pageInfo {
+        endCursor
+        hasNextPage
       }
     }
   }
@@ -36,24 +64,110 @@ query lastTagQuery($owner: String!, $repo: String!, $releaseVersion: String!) {
 
 export const getLastTagName = async (
   actionContext: GitHubContext,
+  tagPrefix: string,
   releaseVersion: string
 ): Promise<string | null> => {
   const {octokit, context} = actionContext
+  core.info(`getLastTagName query`)
   const lastTagResponse = await octokit.graphql(getLastTagNameQuery, {
-    releaseVersion,
+    tagPrefix: `${tagPrefix}${releaseVersion}`,
     owner: context.repo.owner,
     repo: context.repo.repo
   })
   const {
     repository: {
-      refs: {nodes}
+      refs: {
+        nodes,
+        pageInfo: {endCursor, hasNextPage}
+      }
     }
   } = lastTagResponse as LastTagResponse
+  let lastTagName
   if (nodes.length > 0) {
-    return nodes[0].name
-  } else {
-    return null
+    lastTagName = getLastTagNameVerified(tagPrefix, releaseVersion, nodes)
+    if (lastTagName) {
+      return lastTagName
+    }
+    core.info(`tag not found, continue search`)
+    let nextPageToContinue = hasNextPage
+    let lastCursor = endCursor
+    while (nextPageToContinue) {
+      const lastTagNameFromNextPage = await getLastTagNameFromNextPage(
+        actionContext,
+        tagPrefix,
+        releaseVersion,
+        lastCursor
+      )
+      if (lastTagNameFromNextPage.lastTagName) {
+        return lastTagNameFromNextPage.lastTagName
+      } else {
+        core.info(`tag not found, continue search`)
+        nextPageToContinue = lastTagNameFromNextPage.hasNextPage
+        lastCursor = lastTagNameFromNextPage.endCursor
+      }
+    }
   }
+  core.info(`no tag found`)
+
+  return null
+}
+
+interface LastTagNameFromNextPage {
+  lastTagName: string | null
+  endCursor: string
+  hasNextPage: boolean
+}
+
+const getLastTagNameFromNextPage = async (
+  actionContext: GitHubContext,
+  tagPrefix: string,
+  releaseVersion: string,
+  lastCursor: string
+): Promise<LastTagNameFromNextPage> => {
+  const {octokit, context} = actionContext
+  core.info(`lastTagQueryWithPagination ${lastCursor}`)
+  const lastTagPaginationResponse = await octokit.graphql(
+    getLastTagQueryWithPagination,
+    {
+      tagPrefix: `${tagPrefix}${releaseVersion}`,
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      lastCursor
+    }
+  )
+  const {
+    repository: {
+      refs: {
+        nodes,
+        pageInfo: {endCursor, hasNextPage}
+      }
+    }
+  } = lastTagPaginationResponse as LastTagResponse
+  const lastTagName = getLastTagNameVerified(tagPrefix, releaseVersion, nodes)
+  return {
+    lastTagName,
+    endCursor,
+    hasNextPage
+  }
+}
+
+const getLastTagNameVerified = (
+  tagPrefix: string,
+  releaseVersion: string,
+  nodes: {name: string}[]
+): string | null => {
+  if (nodes.length > 0) {
+    let lastTagName
+    for (const item of nodes) {
+      lastTagName = item.name
+      core.info(`check tag ${lastTagName}`)
+      if (verifyNumbering(lastTagName, tagPrefix, releaseVersion)) {
+        core.info(`found tag ${lastTagName}`)
+        return lastTagName
+      }
+    }
+  }
+  return null
 }
 
 interface GetReleaseResponse {
