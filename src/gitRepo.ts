@@ -5,12 +5,16 @@ export const extractJiraIssues = async (
   releaseVersion: string,
   projectsKeys: string,
   githubWorkspace: string,
-  tagPrefix: string
+  tagPrefix: string,
+  previousVersion: string
 ): Promise<string[]> => {
+  core.info(
+    `extractJiraIssues previousVersion ${previousVersion}, releaseVersion ${releaseVersion}, tagPrefix ${tagPrefix}`
+  )
   await exec(`chmod +x ${__dirname}/../extract-issues`)
   await exec(`cd ${githubWorkspace}`)
   const {stdout, stderr} = await exec(
-    `${__dirname}/../extract-issues -r ${releaseVersion} -p ${projectsKeys} -t ${tagPrefix}`
+    `${__dirname}/../extract-issues -r ${releaseVersion} -p ${projectsKeys} -t ${tagPrefix} -v ${previousVersion}`
   )
   core.info(`issueKeysCommaSeparated:--${stdout}--`)
   if (stderr) {

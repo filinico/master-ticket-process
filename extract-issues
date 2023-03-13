@@ -1,12 +1,13 @@
 #!/usr/bin/bash
 
 # use -t to configure token
-while getopts ":t:r:p:" arg; do
+while getopts ":t:r:v:p:" arg; do
   case $arg in
     t) tagPrefix=$OPTARG;;
     r) releaseVersion=$OPTARG;;
+    v) previousVersion=$OPTARG;;
     p) projectsCommaSeparated=$OPTARG;;
-    *) echo "Please provide the release version, tagPrefix and projects. usage: $0 [-t -r -p]" >&2
+    *) echo "Please provide the release version, tagPrefix and projects. usage: $0 [-t -r -v -p]" >&2
        exit 1 ;;
   esac
 done
@@ -26,10 +27,10 @@ separator="|"
 regex="$( printf "${separator}%s" "${projects[@]}" )"
 regex="${regex:${#separator}}"
 git fetch --prune --unshallow --tags
-previousTag=$(git tag --list --sort=-version:refname "$tagPrefix$releaseVersion*" | head -n 1)
+previousTag=$(git tag --list --sort=-version:refname "$tagPrefix$previousVersion*" | grep -oP --regexp="^$tagPrefix$previousVersion.[0-9]{1,6}$" | sort -ru | head -n 1)
 if [ -z "$previousTag" ]
 then
-  tagVersion=$(echo -e "$releaseVersion" | sed 's/\.//g')
+  tagVersion=$(echo -e "$previousVersion" | sed 's/\.//g')
   previousTag=$(git tag --list --sort=-version:refname "5.$tagVersion*" | head -n 1)
 fi
 revision=$(git log -g "origin/release/$releaseVersion" -1 --format=%H)
