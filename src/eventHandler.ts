@@ -101,13 +101,14 @@ const updateDeliveredIssues = async (
   if (isMajorVersion) {
     previousVersion = getPreviousVersion(releaseVersion)
   }
-  const issueKeys = await extractJiraIssues(
+  await extractJiraIssues(
     releaseVersion,
     projectsKeys.join(','),
     workspace,
     tagPrefix,
     previousVersion
   )
+  /*
   await updateJira(jiraContext, issueKeys, version, isMajorVersion)
   if (!isMajorVersion && releaseId) {
     const releaseNote = await generateReleaseNote(version, jiraContext)
@@ -120,6 +121,7 @@ const updateDeliveredIssues = async (
       draft
     )
   }
+  */
 }
 
 export const onReleasePublished = async (
@@ -191,7 +193,10 @@ export const onReleasePublished = async (
   } else {
     previousPatchVersion = ''
   }
-
+  core.info(`previousPatchVersion:${previousPatchVersion}`)
+  core.info(`commitCount:${commitCount}`)
+  core.info(`fileCount:${fileCount}`)
+  /*
   await updateMasterTicket(
     jiraContext,
     tag_name,
@@ -201,13 +206,16 @@ export const onReleasePublished = async (
     fileCount,
     commitCount
   )
-
+  */
+  /*
   await createNextVersion(
     tag_name,
     target_commitish,
     actionContext,
     jiraContext
   )
+  *
+   */
 }
 
 const createNextVersion = async (

@@ -14554,12 +14554,21 @@ const updateDeliveredIssues = (releaseVersion, workspace, jiraContext, version, 
     if (isMajorVersion) {
         previousVersion = semantic_version_1.getPreviousVersion(releaseVersion);
     }
-    const issueKeys = yield gitRepo_1.extractJiraIssues(releaseVersion, projectsKeys.join(','), workspace, tagPrefix, previousVersion);
-    yield jiraUpdate_1.updateJira(jiraContext, issueKeys, version, isMajorVersion);
+    yield gitRepo_1.extractJiraIssues(releaseVersion, projectsKeys.join(','), workspace, tagPrefix, previousVersion);
+    /*
+    await updateJira(jiraContext, issueKeys, version, isMajorVersion)
     if (!isMajorVersion && releaseId) {
-        const releaseNote = yield jiraUpdate_1.generateReleaseNote(version, jiraContext);
-        yield gitHubApi_1.updateRelease(actionContext, releaseId, releaseNote, version, `release/${releaseVersion}`, draft);
+      const releaseNote = await generateReleaseNote(version, jiraContext)
+      await updateRelease(
+        actionContext,
+        releaseId,
+        releaseNote,
+        version,
+        `release/${releaseVersion}`,
+        draft
+      )
     }
+    */
 });
 const onReleasePublished = (actionContext, jiraContext, tagPrefix) => __awaiter(void 0, void 0, void 0, function* () {
     const { context, workspace } = actionContext;
@@ -14599,8 +14608,29 @@ const onReleasePublished = (actionContext, jiraContext, tagPrefix) => __awaiter(
     else {
         previousPatchVersion = '';
     }
-    yield jiraUpdate_1.updateMasterTicket(jiraContext, tag_name, releaseVersion, sha, previousPatchVersion, fileCount, commitCount);
-    yield createNextVersion(tag_name, target_commitish, actionContext, jiraContext);
+    core.info(`previousPatchVersion:${previousPatchVersion}`);
+    core.info(`commitCount:${commitCount}`);
+    core.info(`fileCount:${fileCount}`);
+    /*
+    await updateMasterTicket(
+      jiraContext,
+      tag_name,
+      releaseVersion,
+      sha,
+      previousPatchVersion,
+      fileCount,
+      commitCount
+    )
+    */
+    /*
+    await createNextVersion(
+      tag_name,
+      target_commitish,
+      actionContext,
+      jiraContext
+    )
+    *
+     */
 });
 exports.onReleasePublished = onReleasePublished;
 const createNextVersion = (currentVersion, releaseBranch, actionContext, jiraContext) => __awaiter(void 0, void 0, void 0, function* () {
