@@ -14707,6 +14707,7 @@ exports.convertScriptResults = exports.extractJiraIssues = void 0;
 const promisify_child_process_1 = __nccwpck_require__(2809);
 const core = __importStar(__nccwpck_require__(2186));
 const extractJiraIssues = (releaseVersion, projectsKeys, githubWorkspace, tagPrefix, previousVersion) => __awaiter(void 0, void 0, void 0, function* () {
+    core.info(`extractJiraIssues previousVersion ${previousVersion}, releaseVersion ${releaseVersion}, tagPrefix ${tagPrefix}`);
     yield promisify_child_process_1.exec(`chmod +x ${__dirname}/../extract-issues`);
     yield promisify_child_process_1.exec(`cd ${githubWorkspace}`);
     const { stdout, stderr } = yield promisify_child_process_1.exec(`${__dirname}/../extract-issues -r ${releaseVersion} -p ${projectsKeys} -t ${tagPrefix} -v ${previousVersion}`);
