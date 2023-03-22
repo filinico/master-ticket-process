@@ -8,6 +8,9 @@ export const extractJiraIssues = async (
   tagPrefix: string,
   previousVersion: string
 ): Promise<string[]> => {
+  core.info(
+    `extractJiraIssues previousVersion ${previousVersion}, releaseVersion ${releaseVersion}, tagPrefix ${tagPrefix}`
+  )
   await exec(`chmod +x ${__dirname}/../extract-issues`)
   await exec(`cd ${githubWorkspace}`)
   const {stdout, stderr} = await exec(
