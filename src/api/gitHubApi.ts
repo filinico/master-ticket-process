@@ -214,7 +214,7 @@ export const getReleaseByTagName = async (
       repo: context.repo.repo
     }
   )
-  core.info(`releaseId ${getReleaseResponse?.repository?.release.databaseId}`)
+  core.info(`releaseId ${getReleaseResponse?.repository?.release?.databaseId}`)
   return getReleaseResponse?.repository?.release
 }
 

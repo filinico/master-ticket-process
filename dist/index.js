@@ -14243,7 +14243,7 @@ query getReleaseByTagName($owner: String!, $repo: String!, $tagName: String!) {
 }
   `;
 const getReleaseByTagName = (actionContext, tagName) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b;
+    var _a, _b, _c;
     core.info(`getReleaseByTagName ${tagName}`);
     const { octokit, context } = actionContext;
     const getReleaseResponse = yield octokit.graphql(getReleaseByTagNameQuery, {
@@ -14251,8 +14251,8 @@ const getReleaseByTagName = (actionContext, tagName) => __awaiter(void 0, void 0
         owner: context.repo.owner,
         repo: context.repo.repo
     });
-    core.info(`releaseId ${(_a = getReleaseResponse === null || getReleaseResponse === void 0 ? void 0 : getReleaseResponse.repository) === null || _a === void 0 ? void 0 : _a.release.databaseId}`);
-    return (_b = getReleaseResponse === null || getReleaseResponse === void 0 ? void 0 : getReleaseResponse.repository) === null || _b === void 0 ? void 0 : _b.release;
+    core.info(`releaseId ${(_b = (_a = getReleaseResponse === null || getReleaseResponse === void 0 ? void 0 : getReleaseResponse.repository) === null || _a === void 0 ? void 0 : _a.release) === null || _b === void 0 ? void 0 : _b.databaseId}`);
+    return (_c = getReleaseResponse === null || getReleaseResponse === void 0 ? void 0 : getReleaseResponse.repository) === null || _c === void 0 ? void 0 : _c.release;
 });
 exports.getReleaseByTagName = getReleaseByTagName;
 const createRelease = (actionContext, tagName, targetBranch) => __awaiter(void 0, void 0, void 0, function* () {
@@ -15385,7 +15385,7 @@ function run() {
             core.info(`GITHUB_WORKSPACE=${process.env.GITHUB_WORKSPACE}`);
             core.info(`Current dir=${__dirname}`);
             core.info(`GITHUB_EVENT_NAME=${process.env.GITHUB_EVENT_NAME}`);
-            core.info(`GITHUB context action=${github.context.payload.action}`);
+            core.info(`GITHUB context=${JSON.stringify(github.context)}`);
             const octokit = github.getOctokit(githubToken);
             const gitHubContext = {
                 octokit,
