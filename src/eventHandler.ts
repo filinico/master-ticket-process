@@ -54,19 +54,28 @@ export const onReleasePush = async (
   if (lastTagName) {
     core.info(`lastTagName:${lastTagName}`)
     const nextPatchVersion = generateNextPatchVersion(lastTagName)
+    core.info(`nextPatchVersion:${nextPatchVersion}`)
     let gitHubRelease = await getReleaseByTagName(
       actionContext,
       nextPatchVersion
     )
     if (!gitHubRelease) {
       const nextMinorVersion = generateNextMinorVersion(lastTagName)
+      core.info(`nextMinorVersion:${nextMinorVersion}`)
       gitHubRelease = await getReleaseByTagName(actionContext, nextMinorVersion)
     }
     if (gitHubRelease) {
+      core.info(
+        `gitHubRelease found: ${gitHubRelease.tagName} ${gitHubRelease.databaseId}`
+      )
       fixVersion = gitHubRelease.tagName
       isMajorVersion = false
       draft = gitHubRelease.isDraft
       releaseId = gitHubRelease.databaseId
+    } else {
+      core.info(`gitHubRelease not found: ${nextPatchVersion}`)
+      fixVersion = nextPatchVersion
+      isMajorVersion = false
     }
   }
   core.info(`fixVersion:${fixVersion}`)

@@ -204,6 +204,7 @@ export const getReleaseByTagName = async (
   actionContext: GitHubContext,
   tagName: string
 ): Promise<GitHubRelease | null> => {
+  core.info(`getReleaseByTagName ${tagName}`)
   const {octokit, context} = actionContext
   const getReleaseResponse: GetReleaseResponse = await octokit.graphql(
     getReleaseByTagNameQuery,
@@ -213,6 +214,7 @@ export const getReleaseByTagName = async (
       repo: context.repo.repo
     }
   )
+  core.info(`releaseId ${getReleaseResponse?.repository?.release.databaseId}`)
   return getReleaseResponse?.repository?.release
 }
 
@@ -265,6 +267,7 @@ export const compareTags = async (
   previousTag: string,
   currentTag: string
 ): Promise<CommitsComparison> => {
+  core.info(`compareTags ${previousTag} ${currentTag}`)
   const {octokit, context} = actionContext
   const {
     data: {total_commits, files}
@@ -275,6 +278,7 @@ export const compareTags = async (
     head: currentTag,
     per_page: 1
   })
+  core.info(`comparison commitCount=${total_commits}, fileCount=${files ? files.length : 0}`)
   return {
     commitCount: total_commits,
     fileCount: files ? files.length : 0

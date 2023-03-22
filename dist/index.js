@@ -14243,14 +14243,16 @@ query getReleaseByTagName($owner: String!, $repo: String!, $tagName: String!) {
 }
   `;
 const getReleaseByTagName = (actionContext, tagName) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
+    var _a, _b;
+    core.info(`getReleaseByTagName ${tagName}`);
     const { octokit, context } = actionContext;
     const getReleaseResponse = yield octokit.graphql(getReleaseByTagNameQuery, {
         tagName,
         owner: context.repo.owner,
         repo: context.repo.repo
     });
-    return (_a = getReleaseResponse === null || getReleaseResponse === void 0 ? void 0 : getReleaseResponse.repository) === null || _a === void 0 ? void 0 : _a.release;
+    core.info(`releaseId ${(_a = getReleaseResponse === null || getReleaseResponse === void 0 ? void 0 : getReleaseResponse.repository) === null || _a === void 0 ? void 0 : _a.release.databaseId}`);
+    return (_b = getReleaseResponse === null || getReleaseResponse === void 0 ? void 0 : getReleaseResponse.repository) === null || _b === void 0 ? void 0 : _b.release;
 });
 exports.getReleaseByTagName = getReleaseByTagName;
 const createRelease = (actionContext, tagName, targetBranch) => __awaiter(void 0, void 0, void 0, function* () {
@@ -14282,6 +14284,7 @@ const updateRelease = (actionContext, releaseId, releaseNote, tagName, targetBra
 });
 exports.updateRelease = updateRelease;
 const compareTags = (actionContext, previousTag, currentTag) => __awaiter(void 0, void 0, void 0, function* () {
+    core.info(`compareTags ${previousTag} ${currentTag}`);
     const { octokit, context } = actionContext;
     const { data: { total_commits, files } } = yield octokit.repos.compareCommits({
         owner: context.repo.owner,
@@ -14290,6 +14293,7 @@ const compareTags = (actionContext, previousTag, currentTag) => __awaiter(void 0
         head: currentTag,
         per_page: 1
     });
+    core.info(`comparison commitCount=${total_commits}, fileCount=${files ? files.length : 0}`);
     return {
         commitCount: total_commits,
         fileCount: files ? files.length : 0
@@ -14530,16 +14534,24 @@ const onReleasePush = (actionContext, jiraContext, tagPrefix) => __awaiter(void 
     if (lastTagName) {
         core.info(`lastTagName:${lastTagName}`);
         const nextPatchVersion = semantic_version_1.generateNextPatchVersion(lastTagName);
+        core.info(`nextPatchVersion:${nextPatchVersion}`);
         let gitHubRelease = yield gitHubApi_1.getReleaseByTagName(actionContext, nextPatchVersion);
         if (!gitHubRelease) {
             const nextMinorVersion = semantic_version_1.generateNextMinorVersion(lastTagName);
+            core.info(`nextMinorVersion:${nextMinorVersion}`);
             gitHubRelease = yield gitHubApi_1.getReleaseByTagName(actionContext, nextMinorVersion);
         }
         if (gitHubRelease) {
+            core.info(`gitHubRelease found: ${gitHubRelease.tagName} ${gitHubRelease.databaseId}`);
             fixVersion = gitHubRelease.tagName;
             isMajorVersion = false;
             draft = gitHubRelease.isDraft;
             releaseId = gitHubRelease.databaseId;
+        }
+        else {
+            core.info(`gitHubRelease not found: ${nextPatchVersion}`);
+            fixVersion = nextPatchVersion;
+            isMajorVersion = false;
         }
     }
     core.info(`fixVersion:${fixVersion}`);
