@@ -11,6 +11,7 @@ import {
   generateNextMinorVersion,
   generateNextPatchVersion,
   generatePreviousPatchVersion,
+  getPreviousVersion,
   getVersionFromBranch,
   verifyNumbering
 } from './semantic-version'
@@ -43,40 +44,38 @@ export const onReleasePush = async (
   core.info(`Release version:${releaseVersion}`)
   const lastTagName = await getLastTagName(
     actionContext,
-    `${tagPrefix}${releaseVersion}`
+    tagPrefix,
+    releaseVersion
   )
-  core.info(`lastTagName:${lastTagName}`)
-  let fixVersion: string | null = null
+  let fixVersion = `${tagPrefix}${releaseVersion}.0`
   let isMajorVersion = true
   let draft = true
   let releaseId = null
-  if (!lastTagName) {
-    throw new Error(
-      `The pre-release tag is missing for the ${ref}. Workflow will not be executed. Please tag the release branch and restart the workflow.`
+  if (lastTagName) {
+    core.info(`lastTagName:${lastTagName}`)
+    const nextPatchVersion = generateNextPatchVersion(lastTagName)
+    core.info(`nextPatchVersion:${nextPatchVersion}`)
+    let gitHubRelease = await getReleaseByTagName(
+      actionContext,
+      nextPatchVersion
     )
-  } else if (lastTagName) {
-    if (verifyNumbering(lastTagName, tagPrefix)) {
-      const nextPatchVersion = generateNextPatchVersion(lastTagName)
-      let gitHubRelease = await getReleaseByTagName(
-        actionContext,
-        nextPatchVersion
+    if (!gitHubRelease) {
+      const nextMinorVersion = generateNextMinorVersion(lastTagName)
+      core.info(`nextMinorVersion:${nextMinorVersion}`)
+      gitHubRelease = await getReleaseByTagName(actionContext, nextMinorVersion)
+    }
+    if (gitHubRelease) {
+      core.info(
+        `gitHubRelease found: ${gitHubRelease.tagName} ${gitHubRelease.databaseId}`
       )
-      if (!gitHubRelease) {
-        const nextMinorVersion = generateNextMinorVersion(lastTagName)
-        gitHubRelease = await getReleaseByTagName(
-          actionContext,
-          nextMinorVersion
-        )
-      }
-      if (gitHubRelease) {
-        fixVersion = gitHubRelease.tagName
-        isMajorVersion = false
-        draft = gitHubRelease.isDraft
-        releaseId = gitHubRelease.databaseId
-      }
-    } else if (lastTagName.includes('0.0')) {
-      fixVersion = `${tagPrefix}${releaseVersion}.0`
-      isMajorVersion = true
+      fixVersion = gitHubRelease.tagName
+      isMajorVersion = false
+      draft = gitHubRelease.isDraft
+      releaseId = gitHubRelease.databaseId
+    } else {
+      core.info(`gitHubRelease not found: ${nextPatchVersion}`)
+      fixVersion = nextPatchVersion
+      isMajorVersion = false
     }
   }
   core.info(`fixVersion:${fixVersion}`)
@@ -107,11 +106,16 @@ const updateDeliveredIssues = async (
   tagPrefix: string
 ): Promise<void> => {
   const {projectsKeys} = jiraContext
+  let previousVersion = releaseVersion
+  if (isMajorVersion) {
+    previousVersion = getPreviousVersion(releaseVersion)
+  }
   const issueKeys = await extractJiraIssues(
     releaseVersion,
     projectsKeys.join(','),
     workspace,
-    tagPrefix
+    tagPrefix,
+    previousVersion
   )
   await updateJira(jiraContext, issueKeys, version, isMajorVersion)
   if (!isMajorVersion && releaseId) {
@@ -154,13 +158,13 @@ export const onReleasePublished = async (
       `The release published is a pre-release version. This workflow is for production release only. Workflow will not be executed.`
     )
   }
-  if (!verifyNumbering(tag_name, tagPrefix)) {
+  const releaseVersion = getVersionFromBranch(target_commitish, 'release')
+  if (!verifyNumbering(tag_name, tagPrefix, releaseVersion)) {
     throw new Error(
       `Tag ${tag_name} do not comply to correct versioning using prefix ${tagPrefix}. Workflow will not be executed.`
     )
   }
   const isMajorVersion = checkMajorVersion(tag_name)
-  const releaseVersion = getVersionFromBranch(target_commitish, 'release')
   core.info(`Release version:${releaseVersion}`)
   await updateDeliveredIssues(
     releaseVersion,
@@ -173,13 +177,33 @@ export const onReleasePublished = async (
     actionContext,
     tagPrefix
   )
+  let previousPatchVersion: string | null
+  if (isMajorVersion) {
+    previousPatchVersion = await getLastTagName(
+      actionContext,
+      tagPrefix,
+      getPreviousVersion(releaseVersion)
+    )
+  } else {
+    previousPatchVersion = generatePreviousPatchVersion(tag_name)
+  }
+  let commitCount = 0
+  let fileCount = 0
+  if (previousPatchVersion) {
+    const comparison = await compareTags(
+      actionContext,
+      previousPatchVersion,
+      tag_name
+    )
+    commitCount = comparison.commitCount
+    fileCount = comparison.fileCount
+  } else {
+    previousPatchVersion = ''
+  }
+  core.info(`previousPatchVersion:${previousPatchVersion}`)
+  core.info(`commitCount:${commitCount}`)
+  core.info(`fileCount:${fileCount}`)
 
-  const previousPatchVersion = generatePreviousPatchVersion(tag_name)
-  const {commitCount, fileCount} = await compareTags(
-    actionContext,
-    previousPatchVersion,
-    tag_name
-  )
   await updateMasterTicket(
     jiraContext,
     tag_name,
