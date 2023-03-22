@@ -27,7 +27,7 @@ separator="|"
 regex="$( printf "${separator}%s" "${projects[@]}" )"
 regex="${regex:${#separator}}"
 git fetch --prune --unshallow --tags
-previousTag=$(git tag --list --sort=-version:refname "$tagPrefix$previousVersion*" | grep -oP --regexp="^$tagPrefix$previousVersion.[0-9]{1,6}$" | sort -u)
+previousTag=$(git tag --list --sort=-version:refname "$tagPrefix$previousVersion*" | grep -oP --regexp="^$tagPrefix$previousVersion.[0-9]{1,6}$" | sort -ru | head -n 1)
 if [ -z "$previousTag" ]
 then
   tagVersion=$(echo -e "$previousVersion" | sed 's/\.//g')
