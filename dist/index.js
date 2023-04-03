@@ -14238,6 +14238,7 @@ query getReleaseByTagName($owner: String!, $repo: String!, $tagName: String!) {
       publishedAt
       isPrerelease
       isDraft
+      description
     }
   }
 }
@@ -14372,12 +14373,15 @@ const searchIssues = (context, jQLQuery, properties) => __awaiter(void 0, void 0
         return issues;
     }
     catch (error) {
-        core.error('error during searchIssues request');
+        core.error('error during searchIssues request:');
         if (axios_1.default.isAxiosError(error)) {
             core.error(error.message);
             core.error(JSON.stringify(error.toJSON));
         }
-        return Promise.reject(error);
+        else {
+            core.error(error);
+        }
+        return [];
     }
 });
 exports.searchIssues = searchIssues;
@@ -14395,7 +14399,10 @@ const createVersion = (context, version) => __awaiter(void 0, void 0, void 0, fu
             core.error(error.message);
             core.error(JSON.stringify(error.toJSON));
         }
-        return Promise.reject(error);
+        else {
+            core.error(error);
+        }
+        return null;
     }
 });
 exports.createVersion = createVersion;
@@ -14413,7 +14420,10 @@ const listProjectVersions = (context, projectKey) => __awaiter(void 0, void 0, v
             core.error(error.message);
             core.error(JSON.stringify(error.toJSON));
         }
-        return Promise.reject(error);
+        else {
+            core.error(error);
+        }
+        return [];
     }
 });
 exports.listProjectVersions = listProjectVersions;
@@ -14430,7 +14440,9 @@ const updateIssue = (context, issueKey, data) => __awaiter(void 0, void 0, void 
             core.error(error.message);
             core.error(JSON.stringify(error.toJSON));
         }
-        return Promise.reject(error);
+        else {
+            core.error(error);
+        }
     }
 });
 exports.updateIssue = updateIssue;
@@ -14449,7 +14461,10 @@ const createIssue = (context, data) => __awaiter(void 0, void 0, void 0, functio
             core.error(error.message);
             core.error(JSON.stringify(error.toJSON));
         }
-        return Promise.reject(error);
+        else {
+            core.error(error);
+        }
+        return null;
     }
 });
 exports.createIssue = createIssue;
@@ -14466,7 +14481,9 @@ const createIssueLink = (context, data) => __awaiter(void 0, void 0, void 0, fun
             core.error(error.message);
             core.error(JSON.stringify(error.toJSON));
         }
-        return Promise.reject(error);
+        else {
+            core.error(error);
+        }
     }
 });
 exports.createIssueLink = createIssueLink;
@@ -14529,38 +14546,23 @@ const onReleasePush = (actionContext, jiraContext, tagPrefix) => __awaiter(void 
     const lastTagName = yield gitHubApi_1.getLastTagName(actionContext, tagPrefix, releaseVersion);
     let fixVersion = `${tagPrefix}${releaseVersion}.0`;
     let isMajorVersion = true;
-    let draft = true;
-    let releaseId = null;
     if (lastTagName) {
         core.info(`lastTagName:${lastTagName}`);
         const nextPatchVersion = semantic_version_1.generateNextPatchVersion(lastTagName);
         core.info(`nextPatchVersion:${nextPatchVersion}`);
-        let gitHubRelease = yield gitHubApi_1.getReleaseByTagName(actionContext, nextPatchVersion);
-        if (!gitHubRelease) {
-            const nextMinorVersion = semantic_version_1.generateNextMinorVersion(lastTagName);
-            core.info(`nextMinorVersion:${nextMinorVersion}`);
-            gitHubRelease = yield gitHubApi_1.getReleaseByTagName(actionContext, nextMinorVersion);
-        }
-        if (gitHubRelease) {
-            core.info(`gitHubRelease found: ${gitHubRelease.tagName} ${gitHubRelease.databaseId}`);
-            fixVersion = gitHubRelease.tagName;
-            isMajorVersion = false;
-            draft = gitHubRelease.isDraft;
-            releaseId = gitHubRelease.databaseId;
-        }
-        else {
-            core.info(`gitHubRelease not found: ${nextPatchVersion}`);
-            fixVersion = nextPatchVersion;
-            isMajorVersion = false;
-        }
+        fixVersion = nextPatchVersion;
+        isMajorVersion = false;
     }
     core.info(`fixVersion:${fixVersion}`);
     if (fixVersion) {
-        yield updateDeliveredIssues(releaseVersion, workspace, jiraContext, fixVersion, isMajorVersion, draft, releaseId, actionContext, tagPrefix);
+        yield updateDeliveredIssues(releaseVersion, workspace, jiraContext, fixVersion, isMajorVersion, actionContext, tagPrefix);
+        if (!isMajorVersion) {
+            yield updateGitHubReleaseReleaseNotes(releaseVersion, jiraContext, fixVersion, actionContext);
+        }
     }
 });
 exports.onReleasePush = onReleasePush;
-const updateDeliveredIssues = (releaseVersion, workspace, jiraContext, version, isMajorVersion, draft, releaseId, actionContext, tagPrefix) => __awaiter(void 0, void 0, void 0, function* () {
+const updateDeliveredIssues = (releaseVersion, workspace, jiraContext, version, isMajorVersion, actionContext, tagPrefix) => __awaiter(void 0, void 0, void 0, function* () {
     const { projectsKeys } = jiraContext;
     let previousVersion = releaseVersion;
     if (isMajorVersion) {
@@ -14568,14 +14570,20 @@ const updateDeliveredIssues = (releaseVersion, workspace, jiraContext, version, 
     }
     const issueKeys = yield gitRepo_1.extractJiraIssues(releaseVersion, projectsKeys.join(','), workspace, tagPrefix, previousVersion);
     yield jiraUpdate_1.updateJira(jiraContext, issueKeys, version, isMajorVersion);
-    if (!isMajorVersion && releaseId) {
+});
+const updateGitHubReleaseReleaseNotes = (releaseVersion, jiraContext, version, actionContext) => __awaiter(void 0, void 0, void 0, function* () {
+    const gitHubRelease = yield gitHubApi_1.getReleaseByTagName(actionContext, version);
+    if (gitHubRelease && gitHubRelease.databaseId) {
+        core.info(`gitHubRelease found: ${gitHubRelease.tagName} ${gitHubRelease.databaseId}`);
         const releaseNote = yield jiraUpdate_1.generateReleaseNote(version, jiraContext);
-        yield gitHubApi_1.updateRelease(actionContext, releaseId, releaseNote, version, `release/${releaseVersion}`, draft);
+        if (gitHubRelease.description !== releaseNote) {
+            yield gitHubApi_1.updateRelease(actionContext, gitHubRelease.databaseId, releaseNote, version, `release/${releaseVersion}`, gitHubRelease.isDraft);
+        }
     }
 });
 const onReleasePublished = (actionContext, jiraContext, tagPrefix) => __awaiter(void 0, void 0, void 0, function* () {
-    const { context, workspace } = actionContext;
-    const { payload: { release: { tag_name, target_commitish, prerelease, id, draft } }, sha } = context;
+    const { context } = actionContext;
+    const { payload: { release: { tag_name, target_commitish, prerelease, id } }, sha } = context;
     core.info(`tag_name:${tag_name}`);
     core.info(`target_commitish:${target_commitish}`);
     core.info(`prerelease:${prerelease}`);
@@ -14593,10 +14601,14 @@ const onReleasePublished = (actionContext, jiraContext, tagPrefix) => __awaiter(
     }
     const isMajorVersion = semantic_version_1.checkMajorVersion(tag_name);
     core.info(`Release version:${releaseVersion}`);
-    yield updateDeliveredIssues(releaseVersion, workspace, jiraContext, tag_name, isMajorVersion, draft, id, actionContext, tagPrefix);
-    let previousPatchVersion;
+    let previousPatchVersion = null;
     if (isMajorVersion) {
-        previousPatchVersion = yield gitHubApi_1.getLastTagName(actionContext, tagPrefix, semantic_version_1.getPreviousVersion(releaseVersion));
+        try {
+            previousPatchVersion = yield gitHubApi_1.getLastTagName(actionContext, tagPrefix, semantic_version_1.getPreviousVersion(releaseVersion));
+        }
+        catch (error) {
+            core.error(error);
+        }
     }
     else {
         previousPatchVersion = semantic_version_1.generatePreviousPatchVersion(tag_name);
@@ -14604,9 +14616,14 @@ const onReleasePublished = (actionContext, jiraContext, tagPrefix) => __awaiter(
     let commitCount = 0;
     let fileCount = 0;
     if (previousPatchVersion) {
-        const comparison = yield gitHubApi_1.compareTags(actionContext, previousPatchVersion, tag_name);
-        commitCount = comparison.commitCount;
-        fileCount = comparison.fileCount;
+        try {
+            const comparison = yield gitHubApi_1.compareTags(actionContext, previousPatchVersion, tag_name);
+            commitCount = comparison.commitCount;
+            fileCount = comparison.fileCount;
+        }
+        catch (error) {
+            core.error(error);
+        }
     }
     else {
         previousPatchVersion = '';
@@ -14621,10 +14638,15 @@ exports.onReleasePublished = onReleasePublished;
 const createNextVersion = (currentVersion, releaseBranch, actionContext, jiraContext) => __awaiter(void 0, void 0, void 0, function* () {
     const nextPatchVersion = semantic_version_1.generateNextPatchVersion(currentVersion);
     core.info(`nextPatchVersion:${nextPatchVersion}`);
-    const nextGitHubRelease = yield gitHubApi_1.getReleaseByTagName(actionContext, nextPatchVersion);
-    if (!nextGitHubRelease) {
-        core.info(`request creation of new release :${nextPatchVersion} for ${releaseBranch}`);
-        yield gitHubApi_1.createRelease(actionContext, nextPatchVersion, releaseBranch);
+    try {
+        const nextGitHubRelease = yield gitHubApi_1.getReleaseByTagName(actionContext, nextPatchVersion);
+        if (!nextGitHubRelease) {
+            core.info(`request creation of new release :${nextPatchVersion} for ${releaseBranch}`);
+            yield gitHubApi_1.createRelease(actionContext, nextPatchVersion, releaseBranch);
+        }
+    }
+    catch (error) {
+        core.error(error);
     }
     const { projectsIds, projectsKeys, masterProjectId, masterProjectKey, masterIssueType } = jiraContext;
     for (let i = 0; i < projectsKeys.length; i++) {
@@ -14632,10 +14654,10 @@ const createNextVersion = (currentVersion, releaseBranch, actionContext, jiraCon
         const projectKey = projectsKeys[i];
         yield jiraUpdate_1.createIfNotExistsJiraVersion(jiraContext, nextPatchVersion, parseInt(projectId), projectKey);
     }
-    const masterTicketVersion = yield jiraUpdate_1.createIfNotExistsJiraVersion(jiraContext, nextPatchVersion, parseInt(masterProjectId), masterProjectKey);
-    if (masterTicketVersion && masterTicketVersion.id) {
-        core.info(`request creation of master ticket version ${nextPatchVersion} with id  ${masterTicketVersion.id}`);
-        yield jiraUpdate_1.createMasterTicket(nextPatchVersion, masterIssueType, masterProjectId, masterTicketVersion.id, jiraContext);
+    const rmTicketVersionId = yield jiraUpdate_1.createIfNotExistsJiraVersion(jiraContext, nextPatchVersion, parseInt(masterProjectId), masterProjectKey);
+    if (rmTicketVersionId) {
+        core.info(`request creation of master ticket version ${nextPatchVersion} with id  ${rmTicketVersionId}`);
+        yield jiraUpdate_1.createMasterTicket(nextPatchVersion, masterIssueType, masterProjectId, rmTicketVersionId, jiraContext);
     }
 });
 
@@ -14742,16 +14764,17 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.generateReleaseNote = exports.createMasterTicket = exports.updateMasterTicket = exports.createIfNotExistsJiraVersion = exports.getMasterTicketKey = exports.filterIssuesWithoutCurrentFixVersion = exports.updateJira = void 0;
+exports.generateReleaseNote = exports.createMasterTicket = exports.updateMasterTicket = exports.createIfNotExistsJiraVersion = exports.getMasterTicketKey = exports.filterIssues = exports.updateJira = void 0;
 const jiraApi_1 = __nccwpck_require__(8286);
 const core = __importStar(__nccwpck_require__(2186));
 const updateJira = (context, issueKeys, fixVersion, isMajorVersion) => __awaiter(void 0, void 0, void 0, function* () {
-    if (!issueKeys || issueKeys.length === 0) {
+    if (!issueKeys || issueKeys.length < 1) {
+        core.info(`No extracted issues to search in Jira.`);
         return;
     }
     core.info(`fixVersion:[${fixVersion}]`);
-    const issuesWithSubTasks = yield exports.filterIssuesWithoutCurrentFixVersion(context, issueKeys, fixVersion);
-    core.info(`issuesWithSubTasks:[${issuesWithSubTasks
+    const issuesWithSubTasks = yield exports.filterIssues(context, issueKeys, fixVersion, false);
+    core.info(`extractedIssuesKeysFromJira:[${issuesWithSubTasks
         .map(issue => issue.key)
         .join(',')}]`);
     const issuesKeysWithoutSubTasks = issuesWithSubTasks.map(issue => {
@@ -14763,64 +14786,97 @@ const updateJira = (context, issueKeys, fixVersion, isMajorVersion) => __awaiter
             return issue.key;
         }
     });
-    core.info(`issuesKeysWithoutSubTasks:[${issuesKeysWithoutSubTasks.join(',')}]`);
-    const issues = yield exports.filterIssuesWithoutCurrentFixVersion(context, issuesKeysWithoutSubTasks, fixVersion);
+    core.info(`parentIssuesKeys:[${issuesKeysWithoutSubTasks.join(',')}]`);
+    const issues = yield exports.filterIssues(context, issuesKeysWithoutSubTasks, fixVersion, false);
+    core.info(`parentIssuesKeysFromJira:[${issuesKeysWithoutSubTasks.join(',')}]`);
     if (!issues || issues.length === 0) {
+        core.info(`No extracted issues found in Jira`);
         return;
     }
-    const masterTicketIssueKey = yield exports.getMasterTicketKey(context, fixVersion);
-    const linkedIssues = issues.filter(i => { var _a, _b; return (_b = (_a = i.fields) === null || _a === void 0 ? void 0 : _a.issuelinks) === null || _b === void 0 ? void 0 : _b.find(j => { var _a; return ((_a = j.outwardIssue) === null || _a === void 0 ? void 0 : _a.key) === masterTicketIssueKey; }); });
-    const linkedIssueKeys = linkedIssues.map(issue => issue.key);
-    core.info(`linkedIssueKeys:[${linkedIssueKeys.join(',')}]`);
-    const currentIssueKeys = issues.map(issue => issue.key);
-    core.info(`currentIssueKeys:[${currentIssueKeys.join(',')}]`);
+    yield updateIssuesFixVersion(context, issues.map(issue => issue.key), fixVersion);
+    yield linkIssues(context, issues, fixVersion, isMajorVersion);
+});
+exports.updateJira = updateJira;
+const updateIssuesFixVersion = (context, issueKeys, fixVersion) => __awaiter(void 0, void 0, void 0, function* () {
+    const issuesToUpdate = yield exports.filterIssues(context, issueKeys, fixVersion, true);
+    const issueKeysToUpdate = issuesToUpdate.map(issue => issue.key);
+    core.info(`issueKeysToUpdateFixVersion:[${issueKeysToUpdate.join(',')}]`);
+    if (issueKeysToUpdate.length < 1) {
+        core.info(`No issues keys require fixVersion updates`);
+        return;
+    }
     const { projectsIds, projectsKeys } = context;
-    const fixVersionUpdates = [];
+    const fixVersionUpdates = {};
     for (let i = 0; i < projectsKeys.length; i++) {
         const projectId = projectsIds[i];
         const projectKey = projectsKeys[i];
-        const version = yield exports.createIfNotExistsJiraVersion(context, fixVersion, parseInt(projectId), projectKey);
-        const fixVersionUpdate = {
-            update: {
-                customfield_24144: [
-                    {
-                        add: { id: version.id }
-                    }
-                ]
-            }
-        };
-        fixVersionUpdates.push(fixVersionUpdate);
+        const versionId = yield exports.createIfNotExistsJiraVersion(context, fixVersion, parseInt(projectId), projectKey);
+        if (versionId) {
+            const fixVersionUpdate = {
+                update: {
+                    customfield_24144: [
+                        {
+                            add: { id: versionId }
+                        }
+                    ]
+                }
+            };
+            fixVersionUpdates[projectKey] = fixVersionUpdate;
+        }
     }
-    for (const issueKey of currentIssueKeys) {
-        core.info(`start updateIssue:[${issueKey}]`);
-        let index = 0;
-        for (let i = 0; i < projectsKeys.length; i++) {
-            if (issueKey.startsWith(projectsKeys[i])) {
-                index = i;
+    for (const issueKey of issueKeysToUpdate) {
+        core.info(`try updateIssue:[${issueKey}]`);
+        let projectKey = null;
+        for (const currentProjectKey of projectsKeys) {
+            if (issueKey.startsWith(currentProjectKey)) {
+                projectKey = currentProjectKey;
                 break;
             }
         }
-        yield jiraApi_1.updateIssue(context, issueKey, fixVersionUpdates[index]);
-        if (!isMajorVersion &&
-            masterTicketIssueKey &&
-            !linkedIssueKeys.find(i => i === issueKey)) {
-            core.info(`start linkIssueToMasterTicket:[issue:${issueKey},masterTicketIssueKey:${masterTicketIssueKey}]`);
-            yield linkIssueToMasterTicket(context, masterTicketIssueKey, issueKey);
+        if (projectKey && fixVersionUpdates.hasOwnProperty(projectKey)) {
+            yield jiraApi_1.updateIssue(context, issueKey, fixVersionUpdates[projectKey]);
         }
     }
 });
-exports.updateJira = updateJira;
-const filterIssuesWithoutCurrentFixVersion = (context, issueKeys, fixVersion) => __awaiter(void 0, void 0, void 0, function* () {
+const linkIssues = (context, issues, fixVersion, isMajorVersion) => __awaiter(void 0, void 0, void 0, function* () {
+    if (isMajorVersion) {
+        core.info(`Do not link issues for Major version`);
+        return;
+    }
+    const masterTicketIssueKey = yield exports.getMasterTicketKey(context, fixVersion);
+    if (!masterTicketIssueKey) {
+        core.info(`RM ticket not found. Cannot link issues.`);
+        return;
+    }
+    const linkedIssues = issues.filter(i => { var _a, _b; return (_b = (_a = i.fields) === null || _a === void 0 ? void 0 : _a.issuelinks) === null || _b === void 0 ? void 0 : _b.find(j => { var _a; return ((_a = j.outwardIssue) === null || _a === void 0 ? void 0 : _a.key) === masterTicketIssueKey; }); });
+    const linkedIssueKeys = linkedIssues.map(issue => issue.key);
+    core.info(`linkedIssueKeys:[${linkedIssueKeys.join(',')}]`);
+    if (linkedIssueKeys.length < 1) {
+        core.info(`No issues to be linked to RM ticket.`);
+        return;
+    }
+    for (const issueKey of linkedIssueKeys) {
+        core.info(`try linkIssueToMasterTicket:[issue:${issueKey},masterTicketIssueKey:${masterTicketIssueKey}]`);
+        yield linkIssueToMasterTicket(context, masterTicketIssueKey, issueKey);
+    }
+});
+const filterIssues = (context, issueKeys, fixVersion, withoutFixVersion) => __awaiter(void 0, void 0, void 0, function* () {
     const { projectsKeys } = context;
-    const batchSize = 4000;
+    const batchSize = 100;
     let issueKeysResult = [];
+    if (!issueKeys || issueKeys.length < 1) {
+        return issueKeysResult;
+    }
     let start = 0;
     let end = 0;
     do {
         end = start + batchSize;
         const currentBatch = issueKeys.slice(start, end);
         const groupedIssues = currentBatch.join(',');
-        const searchIssuesWithoutCurrentFixVersion = `project in (${projectsKeys.join(',')}) AND ("Release Version(s)[Version Picker (multiple versions)]" not in (${fixVersion}) OR "Release Version(s)[Version Picker (multiple versions)]" is EMPTY) AND issuekey in (${groupedIssues})`;
+        let searchIssuesWithoutCurrentFixVersion = `project in (${projectsKeys.join(',')}) AND issuekey in (${groupedIssues})`;
+        if (withoutFixVersion) {
+            searchIssuesWithoutCurrentFixVersion = `${searchIssuesWithoutCurrentFixVersion}  AND ("Release Version(s)[Version Picker (multiple versions)]" not in (${fixVersion}) OR "Release Version(s)[Version Picker (multiple versions)]" is EMPTY)`;
+        }
         core.info(`searchIssuesQuery:[${searchIssuesWithoutCurrentFixVersion}]`);
         const currentResult = yield jiraApi_1.searchIssues(context, searchIssuesWithoutCurrentFixVersion, ['issuelinks', 'issuetype', 'parent']);
         core.info(`currentResult:[${currentResult.map(issue => issue.key).join(',')}]`);
@@ -14829,7 +14885,7 @@ const filterIssuesWithoutCurrentFixVersion = (context, issueKeys, fixVersion) =>
     } while (end < issueKeys.length);
     return issueKeysResult;
 });
-exports.filterIssuesWithoutCurrentFixVersion = filterIssuesWithoutCurrentFixVersion;
+exports.filterIssues = filterIssues;
 const listIssuesSummaryWithFixVersion = (context, fixVersion) => __awaiter(void 0, void 0, void 0, function* () {
     const { projectsKeys } = context;
     const issuesWithFixVersion = `project in (${projectsKeys.join(',')}) AND "Release Version(s)[Version Picker (multiple versions)]" in (${fixVersion})`;
@@ -14866,7 +14922,6 @@ const linkIssueToMasterTicket = (context, masterTicketKey, issueKey) => __awaite
 const createIfNotExistsJiraVersion = (context, fixVersion, projectId, projectKey) => __awaiter(void 0, void 0, void 0, function* () {
     const versions = yield jiraApi_1.listProjectVersions(context, projectKey);
     const result = versions.filter(i => i.name === fixVersion);
-    let version;
     if (!result || result.length === 0) {
         const requestedVersion = {
             name: fixVersion,
@@ -14875,14 +14930,18 @@ const createIfNotExistsJiraVersion = (context, fixVersion, projectId, projectKey
             projectId
         };
         core.info(`version not found. start create version:[${requestedVersion}]`);
-        version = yield jiraApi_1.createVersion(context, requestedVersion);
-        core.info(`version created:[${version.id}]`);
+        const version = yield jiraApi_1.createVersion(context, requestedVersion);
+        if (version) {
+            core.info(`version created:[${version.id}]`);
+            return version.id;
+        }
     }
     else {
-        version = result[0];
+        const version = result[0];
         core.info(`version found:[${version.id}]`);
+        return version.id;
     }
-    return version;
+    return null;
 });
 exports.createIfNotExistsJiraVersion = createIfNotExistsJiraVersion;
 const updateMasterTicket = (jiraContext, version, releaseVersion, revision, previousPatchVersion, fileCount, commitCount) => __awaiter(void 0, void 0, void 0, function* () {
@@ -15274,11 +15333,6 @@ const createMasterTicket = (version, masterIssueType, masterProjectId, masterTic
                         }
                     ]
                 },
-                fixVersions: [
-                    {
-                        id: masterTicketVersionId
-                    }
-                ],
                 customfield_23944: {
                     value: 'DU'
                 },

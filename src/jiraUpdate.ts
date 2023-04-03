@@ -14,23 +14,29 @@ import {
 } from './api/jiraApi'
 import * as core from '@actions/core'
 
+interface FixVersionUpdates {
+  [key: string]: JiraIssue
+}
+
 export const updateJira = async (
   context: JiraContext,
   issueKeys: string[],
   fixVersion: string,
   isMajorVersion: boolean
 ): Promise<void> => {
-  if (!issueKeys || issueKeys.length === 0) {
+  if (!issueKeys || issueKeys.length < 1) {
+    core.info(`No extracted issues to search in Jira.`)
     return
   }
   core.info(`fixVersion:[${fixVersion}]`)
-  const issuesWithSubTasks = await filterIssuesWithoutCurrentFixVersion(
+  const issuesWithSubTasks = await filterIssues(
     context,
     issueKeys,
-    fixVersion
+    fixVersion,
+    false
   )
   core.info(
-    `issuesWithSubTasks:[${issuesWithSubTasks
+    `extractedIssuesKeysFromJira:[${issuesWithSubTasks
       .map(issue => issue.key)
       .join(',')}]`
   )
@@ -41,18 +47,98 @@ export const updateJira = async (
       return issue.key
     }
   })
-  core.info(
-    `issuesKeysWithoutSubTasks:[${issuesKeysWithoutSubTasks.join(',')}]`
-  )
-  const issues = await filterIssuesWithoutCurrentFixVersion(
+  core.info(`parentIssuesKeys:[${issuesKeysWithoutSubTasks.join(',')}]`)
+  const issues = await filterIssues(
     context,
     issuesKeysWithoutSubTasks,
+    fixVersion,
+    false
+  )
+  core.info(`parentIssuesKeysFromJira:[${issuesKeysWithoutSubTasks.join(',')}]`)
+  if (!issues || issues.length === 0) {
+    core.info(`No extracted issues found in Jira`)
+    return
+  }
+  await updateIssuesFixVersion(
+    context,
+    issues.map(issue => issue.key),
     fixVersion
   )
-  if (!issues || issues.length === 0) {
+
+  await linkIssues(context, issues, fixVersion, isMajorVersion)
+}
+
+const updateIssuesFixVersion = async (
+  context: JiraContext,
+  issueKeys: string[],
+  fixVersion: string
+): Promise<void> => {
+  const issuesToUpdate = await filterIssues(
+    context,
+    issueKeys,
+    fixVersion,
+    true
+  )
+  const issueKeysToUpdate = issuesToUpdate.map(issue => issue.key)
+  core.info(`issueKeysToUpdateFixVersion:[${issueKeysToUpdate.join(',')}]`)
+  if (issueKeysToUpdate.length < 1) {
+    core.info(`No issues keys require fixVersion updates`)
+    return
+  }
+  const {projectsIds, projectsKeys} = context
+  const fixVersionUpdates: FixVersionUpdates = {}
+  for (let i = 0; i < projectsKeys.length; i++) {
+    const projectId = projectsIds[i]
+    const projectKey = projectsKeys[i]
+    const versionId = await createIfNotExistsJiraVersion(
+      context,
+      fixVersion,
+      parseInt(projectId),
+      projectKey
+    )
+    if (versionId) {
+      const fixVersionUpdate: JiraIssue = {
+        update: {
+          customfield_24144: [
+            {
+              add: {id: versionId}
+            }
+          ]
+        }
+      }
+      fixVersionUpdates[projectKey] = fixVersionUpdate
+    }
+  }
+  for (const issueKey of issueKeysToUpdate) {
+    core.info(`try updateIssue:[${issueKey}]`)
+    let projectKey = null
+    for (const currentProjectKey of projectsKeys) {
+      if (issueKey.startsWith(currentProjectKey)) {
+        projectKey = currentProjectKey
+        break
+      }
+    }
+    if (projectKey && fixVersionUpdates.hasOwnProperty(projectKey)) {
+      await updateIssue(context, issueKey, fixVersionUpdates[projectKey])
+    }
+  }
+}
+
+const linkIssues = async (
+  context: JiraContext,
+  issues: SearchedJiraIssue[],
+  fixVersion: string,
+  isMajorVersion: boolean
+): Promise<void> => {
+  if (isMajorVersion) {
+    core.info(`Do not link issues for Major version`)
     return
   }
   const masterTicketIssueKey = await getMasterTicketKey(context, fixVersion)
+  if (!masterTicketIssueKey) {
+    core.info(`RM ticket not found. Cannot link issues.`)
+    return
+  }
   const linkedIssues = issues.filter(i =>
     i.fields?.issuelinks?.find(
       j => j.outwardIssue?.key === masterTicketIssueKey
@@ -60,71 +146,42 @@ export const updateJira = async (
   )
   const linkedIssueKeys = linkedIssues.map(issue => issue.key)
   core.info(`linkedIssueKeys:[${linkedIssueKeys.join(',')}]`)
-  const currentIssueKeys = issues.map(issue => issue.key)
-  core.info(`currentIssueKeys:[${currentIssueKeys.join(',')}]`)
-  const {projectsIds, projectsKeys} = context
-  const fixVersionUpdates: JiraIssue[] = []
-  for (let i = 0; i < projectsKeys.length; i++) {
-    const projectId = projectsIds[i]
-    const projectKey = projectsKeys[i]
-    const version = await createIfNotExistsJiraVersion(
-      context,
-      fixVersion,
-      parseInt(projectId),
-      projectKey
-    )
-    const fixVersionUpdate: JiraIssue = {
-      update: {
-        customfield_24144: [
-          {
-            add: {id: version.id}
-          }
-        ]
-      }
-    }
-    fixVersionUpdates.push(fixVersionUpdate)
+  if (linkedIssueKeys.length < 1) {
+    core.info(`No issues to be linked to RM ticket.`)
+    return
   }
-
-  for (const issueKey of currentIssueKeys) {
-    core.info(`start updateIssue:[${issueKey}]`)
-    let index = 0
-    for (let i = 0; i < projectsKeys.length; i++) {
-      if (issueKey.startsWith(projectsKeys[i])) {
-        index = i
-        break
-      }
-    }
-    await updateIssue(context, issueKey, fixVersionUpdates[index])
-    if (
-      !isMajorVersion &&
-      masterTicketIssueKey &&
-      !linkedIssueKeys.find(i => i === issueKey)
-    ) {
-      core.info(
-        `start linkIssueToMasterTicket:[issue:${issueKey},masterTicketIssueKey:${masterTicketIssueKey}]`
-      )
-      await linkIssueToMasterTicket(context, masterTicketIssueKey, issueKey)
-    }
+  for (const issueKey of linkedIssueKeys) {
+    core.info(
+      `try linkIssueToMasterTicket:[issue:${issueKey},masterTicketIssueKey:${masterTicketIssueKey}]`
+    )
+    await linkIssueToMasterTicket(context, masterTicketIssueKey, issueKey)
   }
 }
 
-export const filterIssuesWithoutCurrentFixVersion = async (
+export const filterIssues = async (
   context: JiraContext,
   issueKeys: string[],
-  fixVersion: string
+  fixVersion: string,
+  withoutFixVersion: boolean
 ): Promise<SearchedJiraIssue[]> => {
   const {projectsKeys} = context
-  const batchSize = 4000
+  const batchSize = 100
   let issueKeysResult: SearchedJiraIssue[] = []
+  if (!issueKeys || issueKeys.length < 1) {
+    return issueKeysResult
+  }
   let start = 0
   let end = 0
   do {
     end = start + batchSize
     const currentBatch = issueKeys.slice(start, end)
     const groupedIssues = currentBatch.join(',')
-    const searchIssuesWithoutCurrentFixVersion = `project in (${projectsKeys.join(
+    let searchIssuesWithoutCurrentFixVersion = `project in (${projectsKeys.join(
       ','
-    )}) AND ("Release Version(s)[Version Picker (multiple versions)]" not in (${fixVersion}) OR "Release Version(s)[Version Picker (multiple versions)]" is EMPTY) AND issuekey in (${groupedIssues})`
+    )}) AND issuekey in (${groupedIssues})`
+    if (withoutFixVersion) {
+      searchIssuesWithoutCurrentFixVersion = `${searchIssuesWithoutCurrentFixVersion}  AND ("Release Version(s)[Version Picker (multiple versions)]" not in (${fixVersion}) OR "Release Version(s)[Version Picker (multiple versions)]" is EMPTY)`
+    }
     core.info(`searchIssuesQuery:[${searchIssuesWithoutCurrentFixVersion}]`)
     const currentResult = await searchIssues(
       context,
@@ -192,10 +249,9 @@ export const createIfNotExistsJiraVersion = async (
   fixVersion: string,
   projectId: number,
   projectKey: string
-): Promise<JiraVersion> => {
+): Promise<string | null | undefined> => {
   const versions = await listProjectVersions(context, projectKey)
   const result = versions.filter(i => i.name === fixVersion)
-  let version: JiraVersion
   if (!result || result.length === 0) {
     const requestedVersion: JiraVersion = {
       name: fixVersion,
@@ -204,13 +260,17 @@ export const createIfNotExistsJiraVersion = async (
       projectId
     }
     core.info(`version not found. start create version:[${requestedVersion}]`)
-    version = await createVersion(context, requestedVersion)
-    core.info(`version created:[${version.id}]`)
+    const version = await createVersion(context, requestedVersion)
+    if (version) {
+      core.info(`version created:[${version.id}]`)
+      return version.id
+    }
   } else {
-    version = result[0]
+    const version = result[0]
     core.info(`version found:[${version.id}]`)
+    return version.id
   }
-  return version
+  return null
 }
 
 export const updateMasterTicket = async (
@@ -616,11 +676,6 @@ export const createMasterTicket = async (
             }
           ]
         },
-        fixVersions: [
-          {
-            id: masterTicketVersionId
-          }
-        ],
         customfield_23944: {
           value: 'DU'
         },

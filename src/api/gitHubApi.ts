@@ -183,6 +183,7 @@ export interface GitHubRelease {
   publishedAt: string
   isPrerelease: boolean
   isDraft: boolean
+  description: string
 }
 
 const getReleaseByTagNameQuery = `
@@ -195,6 +196,7 @@ query getReleaseByTagName($owner: String!, $repo: String!, $tagName: String!) {
       publishedAt
       isPrerelease
       isDraft
+      description
     }
   }
 }
