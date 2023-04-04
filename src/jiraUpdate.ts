@@ -29,33 +29,39 @@ export const updateJira = async (
     return
   }
   core.info(`fixVersion:[${fixVersion}]`)
-  const issuesWithSubTasks = await filterIssues(
+  const extractedIssues = await filterIssues(
     context,
     issueKeys,
     fixVersion,
     false
   )
   core.info(
-    `extractedIssuesKeysFromJira:[${issuesWithSubTasks
+    `extractedIssuesKeysFromJira:[${extractedIssues
       .map(issue => issue.key)
       .join(',')}]`
   )
-  const issuesKeysWithoutSubTasks = issuesWithSubTasks.map(issue => {
+  const parentIssueKeys: string[] = []
+  const currentIssues: SearchedJiraIssue[] = []
+  for (const issue of extractedIssues) {
     if (issue.fields.issuetype?.subtask && issue.fields.parent) {
-      return issue.fields.parent.key
+      parentIssueKeys.push(issue.fields.parent.key)
     } else {
-      return issue.key
+      currentIssues.push(issue)
     }
-  })
-  core.info(`parentIssuesKeys:[${issuesKeysWithoutSubTasks.join(',')}]`)
-  const issues = await filterIssues(
+  }
+  core.info(`parentIssuesKeys:[${parentIssueKeys.join(',')}]`)
+  core.info(
+    `currentIssues:[${currentIssues.map(issue => issue.key).join(',')}]`
+  )
+  const parentIssues = await filterIssues(
     context,
-    issuesKeysWithoutSubTasks,
+    parentIssueKeys,
     fixVersion,
     false
   )
-  core.info(`parentIssuesKeysFromJira:[${issuesKeysWithoutSubTasks.join(',')}]`)
-  if (!issues || issues.length === 0) {
+  const issues = currentIssues.concat(parentIssues)
+  core.info(`foundIssues:[${issues.map(issue => issue.key).join(',')}]`)
+  if (issues.length < 1) {
     core.info(`No extracted issues found in Jira`)
     return
   }

@@ -14768,28 +14768,32 @@ exports.generateReleaseNote = exports.createMasterTicket = exports.updateMasterT
 const jiraApi_1 = __nccwpck_require__(8286);
 const core = __importStar(__nccwpck_require__(2186));
 const updateJira = (context, issueKeys, fixVersion, isMajorVersion) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
     if (!issueKeys || issueKeys.length < 1) {
         core.info(`No extracted issues to search in Jira.`);
         return;
     }
     core.info(`fixVersion:[${fixVersion}]`);
-    const issuesWithSubTasks = yield exports.filterIssues(context, issueKeys, fixVersion, false);
-    core.info(`extractedIssuesKeysFromJira:[${issuesWithSubTasks
+    const extractedIssues = yield exports.filterIssues(context, issueKeys, fixVersion, false);
+    core.info(`extractedIssuesKeysFromJira:[${extractedIssues
         .map(issue => issue.key)
         .join(',')}]`);
-    const issuesKeysWithoutSubTasks = issuesWithSubTasks.map(issue => {
-        var _a;
+    const parentIssueKeys = [];
+    const currentIssues = [];
+    for (const issue of extractedIssues) {
         if (((_a = issue.fields.issuetype) === null || _a === void 0 ? void 0 : _a.subtask) && issue.fields.parent) {
-            return issue.fields.parent.key;
+            parentIssueKeys.push(issue.fields.parent.key);
         }
         else {
-            return issue.key;
+            currentIssues.push(issue);
         }
-    });
-    core.info(`parentIssuesKeys:[${issuesKeysWithoutSubTasks.join(',')}]`);
-    const issues = yield exports.filterIssues(context, issuesKeysWithoutSubTasks, fixVersion, false);
-    core.info(`parentIssuesKeysFromJira:[${issuesKeysWithoutSubTasks.join(',')}]`);
-    if (!issues || issues.length === 0) {
+    }
+    core.info(`parentIssuesKeys:[${parentIssueKeys.join(',')}]`);
+    core.info(`currentIssues:[${currentIssues.map(issue => issue.key).join(',')}]`);
+    const parentIssues = yield exports.filterIssues(context, parentIssueKeys, fixVersion, false);
+    const issues = currentIssues.concat(parentIssues);
+    core.info(`foundIssues:[${issues.map(issue => issue.key).join(',')}]`);
+    if (issues.length < 1) {
         core.info(`No extracted issues found in Jira`);
         return;
     }
