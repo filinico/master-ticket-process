@@ -8,7 +8,6 @@ import {
 } from './api/gitHubApi'
 import {
   checkMajorVersion,
-  generateNextMinorVersion,
   generateNextPatchVersion,
   generatePreviousPatchVersion,
   getPreviousVersion,
@@ -49,34 +48,12 @@ export const onReleasePush = async (
   )
   let fixVersion = `${tagPrefix}${releaseVersion}.0`
   let isMajorVersion = true
-  let draft = true
-  let releaseId = null
   if (lastTagName) {
     core.info(`lastTagName:${lastTagName}`)
     const nextPatchVersion = generateNextPatchVersion(lastTagName)
     core.info(`nextPatchVersion:${nextPatchVersion}`)
-    let gitHubRelease = await getReleaseByTagName(
-      actionContext,
-      nextPatchVersion
-    )
-    if (!gitHubRelease) {
-      const nextMinorVersion = generateNextMinorVersion(lastTagName)
-      core.info(`nextMinorVersion:${nextMinorVersion}`)
-      gitHubRelease = await getReleaseByTagName(actionContext, nextMinorVersion)
-    }
-    if (gitHubRelease) {
-      core.info(
-        `gitHubRelease found: ${gitHubRelease.tagName} ${gitHubRelease.databaseId}`
-      )
-      fixVersion = gitHubRelease.tagName
-      isMajorVersion = false
-      draft = gitHubRelease.isDraft
-      releaseId = gitHubRelease.databaseId
-    } else {
-      core.info(`gitHubRelease not found: ${nextPatchVersion}`)
-      fixVersion = nextPatchVersion
-      isMajorVersion = false
-    }
+    fixVersion = nextPatchVersion
+    isMajorVersion = false
   }
   core.info(`fixVersion:${fixVersion}`)
   if (fixVersion) {
@@ -86,11 +63,17 @@ export const onReleasePush = async (
       jiraContext,
       fixVersion,
       isMajorVersion,
-      draft,
-      releaseId,
       actionContext,
       tagPrefix
     )
+    if (!isMajorVersion) {
+      await updateGitHubReleaseReleaseNotes(
+        releaseVersion,
+        jiraContext,
+        fixVersion,
+        actionContext
+      )
+    }
   }
 }
 
@@ -100,8 +83,6 @@ const updateDeliveredIssues = async (
   jiraContext: JiraContext,
   version: string,
   isMajorVersion: boolean,
-  draft: boolean,
-  releaseId: number | undefined | null,
   actionContext: GitHubContext,
   tagPrefix: string
 ): Promise<void> => {
@@ -118,16 +99,30 @@ const updateDeliveredIssues = async (
     previousVersion
   )
   await updateJira(jiraContext, issueKeys, version, isMajorVersion)
-  if (!isMajorVersion && releaseId) {
-    const releaseNote = await generateReleaseNote(version, jiraContext)
-    await updateRelease(
-      actionContext,
-      releaseId,
-      releaseNote,
-      version,
-      `release/${releaseVersion}`,
-      draft
+}
+
+const updateGitHubReleaseReleaseNotes = async (
+  releaseVersion: string,
+  jiraContext: JiraContext,
+  version: string,
+  actionContext: GitHubContext
+): Promise<void> => {
+  const gitHubRelease = await getReleaseByTagName(actionContext, version)
+  if (gitHubRelease && gitHubRelease.databaseId) {
+    core.info(
+      `gitHubRelease found: ${gitHubRelease.tagName} ${gitHubRelease.databaseId}`
     )
+    const releaseNote = await generateReleaseNote(version, jiraContext)
+    if (gitHubRelease.description !== releaseNote) {
+      await updateRelease(
+        actionContext,
+        gitHubRelease.databaseId,
+        releaseNote,
+        version,
+        `release/${releaseVersion}`,
+        gitHubRelease.isDraft
+      )
+    }
   }
 }
 
@@ -136,10 +131,10 @@ export const onReleasePublished = async (
   jiraContext: JiraContext,
   tagPrefix: string
 ): Promise<void> => {
-  const {context, workspace} = actionContext
+  const {context} = actionContext
   const {
     payload: {
-      release: {tag_name, target_commitish, prerelease, id, draft}
+      release: {tag_name, target_commitish, prerelease, id}
     },
     sha
   } = context
@@ -166,37 +161,34 @@ export const onReleasePublished = async (
   }
   const isMajorVersion = checkMajorVersion(tag_name)
   core.info(`Release version:${releaseVersion}`)
-  await updateDeliveredIssues(
-    releaseVersion,
-    workspace,
-    jiraContext,
-    tag_name,
-    isMajorVersion,
-    draft,
-    id,
-    actionContext,
-    tagPrefix
-  )
-  let previousPatchVersion: string | null
+  let previousPatchVersion: string | null = null
   if (isMajorVersion) {
-    previousPatchVersion = await getLastTagName(
-      actionContext,
-      tagPrefix,
-      getPreviousVersion(releaseVersion)
-    )
+    try {
+      previousPatchVersion = await getLastTagName(
+        actionContext,
+        tagPrefix,
+        getPreviousVersion(releaseVersion)
+      )
+    } catch (error) {
+      core.error(error)
+    }
   } else {
     previousPatchVersion = generatePreviousPatchVersion(tag_name)
   }
   let commitCount = 0
   let fileCount = 0
   if (previousPatchVersion) {
-    const comparison = await compareTags(
-      actionContext,
-      previousPatchVersion,
-      tag_name
-    )
-    commitCount = comparison.commitCount
-    fileCount = comparison.fileCount
+    try {
+      const comparison = await compareTags(
+        actionContext,
+        previousPatchVersion,
+        tag_name
+      )
+      commitCount = comparison.commitCount
+      fileCount = comparison.fileCount
+    } catch (error) {
+      core.error(error)
+    }
   } else {
     previousPatchVersion = ''
   }
@@ -230,15 +222,19 @@ const createNextVersion = async (
 ): Promise<void> => {
   const nextPatchVersion = generateNextPatchVersion(currentVersion)
   core.info(`nextPatchVersion:${nextPatchVersion}`)
-  const nextGitHubRelease = await getReleaseByTagName(
-    actionContext,
-    nextPatchVersion
-  )
-  if (!nextGitHubRelease) {
-    core.info(
-      `request creation of new release :${nextPatchVersion} for ${releaseBranch}`
+  try {
+    const nextGitHubRelease = await getReleaseByTagName(
+      actionContext,
+      nextPatchVersion
     )
-    await createRelease(actionContext, nextPatchVersion, releaseBranch)
+    if (!nextGitHubRelease) {
+      core.info(
+        `request creation of new release :${nextPatchVersion} for ${releaseBranch}`
+      )
+      await createRelease(actionContext, nextPatchVersion, releaseBranch)
+    }
+  } catch (error) {
+    core.error(error)
   }
   const {
     projectsIds,
@@ -259,22 +255,22 @@ const createNextVersion = async (
     )
   }
 
-  const masterTicketVersion = await createIfNotExistsJiraVersion(
+  const rmTicketVersionId = await createIfNotExistsJiraVersion(
     jiraContext,
     nextPatchVersion,
     parseInt(masterProjectId),
     masterProjectKey
   )
 
-  if (masterTicketVersion && masterTicketVersion.id) {
+  if (rmTicketVersionId) {
     core.info(
-      `request creation of master ticket version ${nextPatchVersion} with id  ${masterTicketVersion.id}`
+      `request creation of master ticket version ${nextPatchVersion} with id  ${rmTicketVersionId}`
     )
     await createMasterTicket(
       nextPatchVersion,
       masterIssueType,
       masterProjectId,
-      masterTicketVersion.id,
+      rmTicketVersionId,
       jiraContext
     )
   }

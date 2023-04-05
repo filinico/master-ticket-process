@@ -240,19 +240,21 @@ export const searchIssues = async (
     }
     return issues
   } catch (error: unknown | AxiosError) {
-    core.error('error during searchIssues request')
+    core.error('error during searchIssues request:')
     if (axios.isAxiosError(error)) {
       core.error(error.message)
       core.error(JSON.stringify(error.toJSON))
+    } else {
+      core.error(error as string)
     }
-    return Promise.reject(error)
+    return []
   }
 }
 
 export const createVersion = async (
   context: JiraContext,
   version: JiraVersion
-): Promise<JiraVersion> => {
+): Promise<JiraVersion | null> => {
   const {subDomain, email, token} = context
   try {
     core.info('request createVersion')
@@ -268,8 +270,10 @@ export const createVersion = async (
     if (axios.isAxiosError(error)) {
       core.error(error.message)
       core.error(JSON.stringify(error.toJSON))
+    } else {
+      core.error(error as string)
     }
-    return Promise.reject(error)
+    return null
   }
 }
 
@@ -291,8 +295,10 @@ export const listProjectVersions = async (
     if (axios.isAxiosError(error)) {
       core.error(error.message)
       core.error(JSON.stringify(error.toJSON))
+    } else {
+      core.error(error as string)
     }
-    return Promise.reject(error)
+    return []
   }
 }
 
@@ -315,15 +321,16 @@ export const updateIssue = async (
     if (axios.isAxiosError(error)) {
       core.error(error.message)
       core.error(JSON.stringify(error.toJSON))
+    } else {
+      core.error(error as string)
     }
-    return Promise.reject(error)
   }
 }
 
 export const createIssue = async (
   context: JiraContext,
   data: JiraIssue
-): Promise<CreatedIssue> => {
+): Promise<CreatedIssue | null> => {
   const {subDomain, email, token} = context
   try {
     core.info('request createIssue')
@@ -340,8 +347,10 @@ export const createIssue = async (
     if (axios.isAxiosError(error)) {
       core.error(error.message)
       core.error(JSON.stringify(error.toJSON))
+    } else {
+      core.error(error as string)
     }
-    return Promise.reject(error)
+    return null
   }
 }
 
@@ -363,8 +372,9 @@ export const createIssueLink = async (
     if (axios.isAxiosError(error)) {
       core.error(error.message)
       core.error(JSON.stringify(error.toJSON))
+    } else {
+      core.error(error as string)
     }
-    return Promise.reject(error)
   }
 }
 
