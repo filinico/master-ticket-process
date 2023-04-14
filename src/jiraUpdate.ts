@@ -74,7 +74,7 @@ export const updateJira = async (
   await linkIssues(context, issues, fixVersion, isMajorVersion)
 }
 
-const updateIssuesFixVersion = async (
+export const updateIssuesFixVersion = async (
   context: JiraContext,
   issueKeys: string[],
   fixVersion: string
@@ -116,7 +116,6 @@ const updateIssuesFixVersion = async (
     }
   }
   for (const issueKey of issueKeysToUpdate) {
-    core.info(`try updateIssue:[${issueKey}]`)
     let projectKey = null
     for (const currentProjectKey of projectsKeys) {
       if (issueKey.startsWith(currentProjectKey)) {
@@ -125,12 +124,13 @@ const updateIssuesFixVersion = async (
       }
     }
     if (projectKey && fixVersionUpdates.hasOwnProperty(projectKey)) {
+      core.info(`try updateIssue:[${issueKey}]`)
       await updateIssue(context, issueKey, fixVersionUpdates[projectKey])
     }
   }
 }
 
-const linkIssues = async (
+export const linkIssues = async (
   context: JiraContext,
   issues: SearchedJiraIssue[],
   fixVersion: string,
@@ -145,18 +145,20 @@ const linkIssues = async (
     core.info(`RM ticket not found. Cannot link issues.`)
     return
   }
-  const linkedIssues = issues.filter(i =>
-    i.fields?.issuelinks?.find(
-      j => j.outwardIssue?.key === masterTicketIssueKey
+  const issuesKeysToBeLinked = issues
+    .filter(
+      i =>
+        !i.fields?.issuelinks?.find(
+          j => j.outwardIssue?.key === masterTicketIssueKey
+        )
     )
-  )
-  const linkedIssueKeys = linkedIssues.map(issue => issue.key)
-  core.info(`linkedIssueKeys:[${linkedIssueKeys.join(',')}]`)
-  if (linkedIssueKeys.length < 1) {
+    .map(issue => issue.key)
+  core.info(`issuesKeysToBeLinked:[${issuesKeysToBeLinked.join(',')}]`)
+  if (issuesKeysToBeLinked.length < 1) {
     core.info(`No issues to be linked to RM ticket.`)
     return
   }
-  for (const issueKey of linkedIssueKeys) {
+  for (const issueKey of issuesKeysToBeLinked) {
     core.info(
       `try linkIssueToMasterTicket:[issue:${issueKey},masterTicketIssueKey:${masterTicketIssueKey}]`
     )
@@ -276,6 +278,7 @@ export const createIfNotExistsJiraVersion = async (
     core.info(`version found:[${version.id}]`)
     return version.id
   }
+  core.info(`version not created[${fixVersion}]`)
   return null
 }
 

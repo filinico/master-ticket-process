@@ -14764,7 +14764,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.generateReleaseNote = exports.createMasterTicket = exports.updateMasterTicket = exports.createIfNotExistsJiraVersion = exports.getMasterTicketKey = exports.filterIssues = exports.updateJira = void 0;
+exports.generateReleaseNote = exports.createMasterTicket = exports.updateMasterTicket = exports.createIfNotExistsJiraVersion = exports.getMasterTicketKey = exports.filterIssues = exports.linkIssues = exports.updateIssuesFixVersion = exports.updateJira = void 0;
 const jiraApi_1 = __nccwpck_require__(8286);
 const core = __importStar(__nccwpck_require__(2186));
 const updateJira = (context, issueKeys, fixVersion, isMajorVersion) => __awaiter(void 0, void 0, void 0, function* () {
@@ -14797,8 +14797,8 @@ const updateJira = (context, issueKeys, fixVersion, isMajorVersion) => __awaiter
         core.info(`No extracted issues found in Jira`);
         return;
     }
-    yield updateIssuesFixVersion(context, issues.map(issue => issue.key), fixVersion);
-    yield linkIssues(context, issues, fixVersion, isMajorVersion);
+    yield exports.updateIssuesFixVersion(context, issues.map(issue => issue.key), fixVersion);
+    yield exports.linkIssues(context, issues, fixVersion, isMajorVersion);
 });
 exports.updateJira = updateJira;
 const updateIssuesFixVersion = (context, issueKeys, fixVersion) => __awaiter(void 0, void 0, void 0, function* () {
@@ -14829,7 +14829,6 @@ const updateIssuesFixVersion = (context, issueKeys, fixVersion) => __awaiter(voi
         }
     }
     for (const issueKey of issueKeysToUpdate) {
-        core.info(`try updateIssue:[${issueKey}]`);
         let projectKey = null;
         for (const currentProjectKey of projectsKeys) {
             if (issueKey.startsWith(currentProjectKey)) {
@@ -14838,10 +14837,12 @@ const updateIssuesFixVersion = (context, issueKeys, fixVersion) => __awaiter(voi
             }
         }
         if (projectKey && fixVersionUpdates.hasOwnProperty(projectKey)) {
+            core.info(`try updateIssue:[${issueKey}]`);
             yield jiraApi_1.updateIssue(context, issueKey, fixVersionUpdates[projectKey]);
         }
     }
 });
+exports.updateIssuesFixVersion = updateIssuesFixVersion;
 const linkIssues = (context, issues, fixVersion, isMajorVersion) => __awaiter(void 0, void 0, void 0, function* () {
     if (isMajorVersion) {
         core.info(`Do not link issues for Major version`);
@@ -14852,18 +14853,23 @@ const linkIssues = (context, issues, fixVersion, isMajorVersion) => __awaiter(vo
         core.info(`RM ticket not found. Cannot link issues.`);
         return;
     }
-    const linkedIssues = issues.filter(i => { var _a, _b; return (_b = (_a = i.fields) === null || _a === void 0 ? void 0 : _a.issuelinks) === null || _b === void 0 ? void 0 : _b.find(j => { var _a; return ((_a = j.outwardIssue) === null || _a === void 0 ? void 0 : _a.key) === masterTicketIssueKey; }); });
-    const linkedIssueKeys = linkedIssues.map(issue => issue.key);
-    core.info(`linkedIssueKeys:[${linkedIssueKeys.join(',')}]`);
-    if (linkedIssueKeys.length < 1) {
+    const issuesKeysToBeLinked = issues
+        .filter(i => {
+        var _a, _b;
+        return !((_b = (_a = i.fields) === null || _a === void 0 ? void 0 : _a.issuelinks) === null || _b === void 0 ? void 0 : _b.find(j => { var _a; return ((_a = j.outwardIssue) === null || _a === void 0 ? void 0 : _a.key) === masterTicketIssueKey; }));
+    })
+        .map(issue => issue.key);
+    core.info(`issuesKeysToBeLinked:[${issuesKeysToBeLinked.join(',')}]`);
+    if (issuesKeysToBeLinked.length < 1) {
         core.info(`No issues to be linked to RM ticket.`);
         return;
     }
-    for (const issueKey of linkedIssueKeys) {
+    for (const issueKey of issuesKeysToBeLinked) {
         core.info(`try linkIssueToMasterTicket:[issue:${issueKey},masterTicketIssueKey:${masterTicketIssueKey}]`);
         yield linkIssueToMasterTicket(context, masterTicketIssueKey, issueKey);
     }
 });
+exports.linkIssues = linkIssues;
 const filterIssues = (context, issueKeys, fixVersion, withoutFixVersion) => __awaiter(void 0, void 0, void 0, function* () {
     const { projectsKeys } = context;
     const batchSize = 100;
@@ -14945,6 +14951,7 @@ const createIfNotExistsJiraVersion = (context, fixVersion, projectId, projectKey
         core.info(`version found:[${version.id}]`);
         return version.id;
     }
+    core.info(`version not created[${fixVersion}]`);
     return null;
 });
 exports.createIfNotExistsJiraVersion = createIfNotExistsJiraVersion;
