@@ -1,16 +1,13 @@
 apiVersion: Backstage.io/v1alpha1
-kind: <Choose either Component, API or Resource>
+kind: Component
 metadata:
-  description: <Free string, keep it short and informative>
+  description: RM certification process GitHub action
   labels:
-    jiraComponents: <Your Jira Component, choose the most representative option, case
-      sensitive string>
+    jiraComponents: CI/CD
     jiraDevTeam: Treasury Management (CTM)
-    jiraProject: '<Your Jira project Key, case sensitive string, eg.: CD, RSKDEV,
-      CTM or CTSD>'
-    sastTool: '<Choose one or multiple separated by comma, valid values: VeraCode,
-      GoSec, Brakeman, Bandit, Sonarqube, Other or None>'
-  name: <String 63 char max size, use _ or - to separate, usually the repo name>
+    jiraProject: TM
+    sastTool: Other
+  name: treasury_rm-ticket-process
 spec:
-  lifecycle: <Choose either production, experimental or deprecated>
-  type: <Choose either service, website or library>
+  lifecycle: experimental
+  type: library
