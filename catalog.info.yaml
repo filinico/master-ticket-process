@@ -6,8 +6,9 @@ metadata:
     jiraComponents: CI/CD
     jiraDevTeam: Treasury Management (CTM)
     jiraProject: TM
+    targetAudience: private
     sastTool: Other
   name: treasury_rm-ticket-process
 spec:
-  lifecycle: experimental
+  lifecycle: production
   type: library
