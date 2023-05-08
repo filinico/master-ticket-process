@@ -1,0 +1,14 @@
+apiVersion: Backstage.io/v1alpha1
+kind: Component
+metadata:
+  description: RM certification process GitHub action
+  labels:
+    jiraComponents: CI/CD
+    jiraDevTeam: Treasury Management (CTM)
+    jiraProject: TM
+    targetAudience: private
+    sastTool: Other
+  name: treasury_rm-ticket-process
+spec:
+  lifecycle: production
+  type: library
