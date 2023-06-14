@@ -247,6 +247,9 @@ export const searchIssues = async (
     } else {
       core.error(error as string)
     }
+    core.setFailed(
+      'An error happened requesting Jira issues. Please restart the job.'
+    )
     return []
   }
 }
@@ -273,6 +276,9 @@ export const createVersion = async (
     } else {
       core.error(error as string)
     }
+    core.setFailed(
+      'The creation of the Jira version failed. Please restart the job.'
+    )
     return null
   }
 }
@@ -298,6 +304,9 @@ export const listProjectVersions = async (
     } else {
       core.error(error as string)
     }
+    core.setFailed(
+      'An error happened requesting Jira versions. Please restart the job.'
+    )
     return []
   }
 }
@@ -324,6 +333,9 @@ export const updateIssue = async (
     } else {
       core.error(error as string)
     }
+    core.setFailed(
+      'The update of the Jira ticket failed. Please restart the job.'
+    )
   }
 }
 
@@ -350,6 +362,9 @@ export const createIssue = async (
     } else {
       core.error(error as string)
     }
+    core.setFailed(
+      'The creation of the Jira ticket failed. Please restart the job.'
+    )
     return null
   }
 }
@@ -375,6 +390,9 @@ export const createIssueLink = async (
     } else {
       core.error(error as string)
     }
+    core.setFailed(
+      'The creation of the Jira issue link failed. Please restart the job.'
+    )
   }
 }
 

@@ -14381,6 +14381,7 @@ const searchIssues = (context, jQLQuery, properties) => __awaiter(void 0, void 0
         else {
             core.error(error);
         }
+        core.setFailed('An error happened requesting Jira issues. Please restart the job.');
         return [];
     }
 });
@@ -14402,6 +14403,7 @@ const createVersion = (context, version) => __awaiter(void 0, void 0, void 0, fu
         else {
             core.error(error);
         }
+        core.setFailed('The creation of the Jira version failed. Please restart the job.');
         return null;
     }
 });
@@ -14423,6 +14425,7 @@ const listProjectVersions = (context, projectKey) => __awaiter(void 0, void 0, v
         else {
             core.error(error);
         }
+        core.setFailed('An error happened requesting Jira versions. Please restart the job.');
         return [];
     }
 });
@@ -14443,6 +14446,7 @@ const updateIssue = (context, issueKey, data) => __awaiter(void 0, void 0, void 
         else {
             core.error(error);
         }
+        core.setFailed('The update of the Jira ticket failed. Please restart the job.');
     }
 });
 exports.updateIssue = updateIssue;
@@ -14464,6 +14468,7 @@ const createIssue = (context, data) => __awaiter(void 0, void 0, void 0, functio
         else {
             core.error(error);
         }
+        core.setFailed('The creation of the Jira ticket failed. Please restart the job.');
         return null;
     }
 });
@@ -14484,6 +14489,7 @@ const createIssueLink = (context, data) => __awaiter(void 0, void 0, void 0, fun
         else {
             core.error(error);
         }
+        core.setFailed('The creation of the Jira issue link failed. Please restart the job.');
     }
 });
 exports.createIssueLink = createIssueLink;
@@ -14623,6 +14629,7 @@ const onReleasePublished = (actionContext, jiraContext, tagPrefix) => __awaiter(
         }
         catch (error) {
             core.error(error);
+            core.setFailed('The comparison of commits failed. Please restart the job.');
         }
     }
     else {
@@ -14647,6 +14654,7 @@ const createNextVersion = (currentVersion, releaseBranch, actionContext, jiraCon
     }
     catch (error) {
         core.error(error);
+        core.setFailed('The creation of the GitHub release failed. Please restart the job.');
     }
     const { projectsIds, projectsKeys, masterProjectId, masterProjectKey, masterIssueType } = jiraContext;
     for (let i = 0; i < projectsKeys.length; i++) {

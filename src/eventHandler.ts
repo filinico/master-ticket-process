@@ -188,6 +188,9 @@ export const onReleasePublished = async (
       fileCount = comparison.fileCount
     } catch (error) {
       core.error(error)
+      core.setFailed(
+        'The comparison of commits failed. Please restart the job.'
+      )
     }
   } else {
     previousPatchVersion = ''
@@ -235,6 +238,9 @@ const createNextVersion = async (
     }
   } catch (error) {
     core.error(error)
+    core.setFailed(
+      'The creation of the GitHub release failed. Please restart the job.'
+    )
   }
   const {
     projectsIds,
